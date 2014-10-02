@@ -2,6 +2,15 @@
 
 A Clojure library designed to define literal lazy, recursive maps.
 
+```clojure
+(def m
+  (rmap X 
+    {:what "awesome!"
+     :clj (str "Clojure is " (:what X))})
+(:clj m)
+;=> "Clojure is awesome!"
+```
+
 ## Usage
 
 ### Adding to your project
