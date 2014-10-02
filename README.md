@@ -9,7 +9,7 @@ A Clojure library designed to define literal lazy, recursive maps.
 Add this to your leiningen dependencies
 
 ```clojure
-[functionalbytes/rmap "0.1"]
+[functionalbytes/rmap "0.1.1"]
 ```
 
 or as a maven dependency
@@ -18,7 +18,7 @@ or as a maven dependency
 <dependency>
     <groupId>functionalbytes</groupId>
     <artifactId>rmap</artifactId>
-    <version>0.1</version>
+    <version>0.1.1</version>
 </dependency>
 ```
 
@@ -37,7 +37,7 @@ For example:
                  :ns  (namespace (get r :foo))
                  :cnt (+ v (count (:ns r)))
                  k (println \"Only evaluated once, to nil.\")})]
-                   
+
   (:cnt m)           ;=> 103
   (get m [1 2 3])    ;=> nil
   (m :nope :default) ;=> :default
