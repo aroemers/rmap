@@ -36,12 +36,12 @@ For example:
       m (rmap r {:foo 'bar/baz
                  :ns  (namespace (get r :foo))
                  :cnt (+ v (count (:ns r)))
-                 k (println \"Only evaluated once, to nil.\")})]
+                 k (println "Only evaluated once, to nil.")})]
 
   (:cnt m)           ;=> 103
   (get m [1 2 3])    ;=> nil
   (m :nope :default) ;=> :default
-  (into {} m))       ;=> {:foo bar/baz, :ns \"bar\", :cnt 103, [1 2 3] nil}
+  (into {} m))       ;=> {:foo bar/baz, :ns "bar", :cnt 103, [1 2 3] nil}
 ```
 
 ## License
