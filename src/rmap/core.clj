@@ -1,9 +1,34 @@
 (ns rmap.core)
 
+(deftype RMap [keyset evalled val-fn]
+  clojure.lang.IFn
+  (invoke [this key] (val-fn this key))
+  (invoke [this key default] (or (val-fn this key) default))
+
+  clojure.lang.ILookup
+  (valAt [this key] (val-fn this key))
+  (valAt [this key default] (or (val-fn this key) default))
+
+  clojure.lang.Seqable
+  (seq [this] (seq (for [key keyset] [key (val-fn this key)])))
+
+  Object
+  (toString [_]
+    (let [evalled @evalled]
+      (str "{" (->> keyset
+                    (map (fn [key]
+                           (str key " "
+                                (if-let [val (get evalled key)]
+                                  (if (= ::nil val) "nil" val)
+                                  "??"))) )
+                    (interpose ", ")
+                    (apply str))
+           "}"))))
+
 (defmacro rmap
   "Defines a lazy, recursive map. That is, expressions in the values
   of the map can use the given symbol to access other keys within the
-  map. An object of clojure.lang.AFn/ILookup/Seqable is returned.
+  map. An object of clojure.lang.IFn/ILookup/Seqable is returned.
 
   For example:
   (let [v 100
@@ -19,16 +44,9 @@
   [s m]
   `(let [keyset# ~(set (keys m))
          evalled# (atom {})
-         fn# (fn rmap# [key#]
+         fn# (fn rmap# [~s key#]
                (when (contains? keyset# key#)
-                 (let [~s (proxy [clojure.lang.AFn clojure.lang.ILookup] []
-                            (~'invoke
-                              ([k#] (rmap# k#))
-                              ([k# d#] (or (rmap# k#) d#)))
-                            (~'valAt
-                              ([k#] (rmap# k#))
-                              ([k# d#] (or (rmap# k#) d#))))
-                       val# (or (get @evalled# key#)
+                 (let [val# (or (get @evalled# key#)
                                 (locking evalled#
                                   (or (get @evalled# key#)
                                       (get (swap! evalled# assoc key#
@@ -36,14 +54,7 @@
                                                         ~@(for [key-and-expression m
                                                                 key-or-expression key-and-expression]
                                                             key-or-expression))
-                                                      ::nil))
+                                                      :rmap.core/nil))
                                            key#))))]
-                   (when (not= val# ::nil) val#))))]
-     (proxy [clojure.lang.AFn clojure.lang.ILookup clojure.lang.Seqable] []
-       (~'invoke
-         ([k#] (fn# k#))
-         ([k# d#] (or (fn# k#) d#)))
-       (~'valAt
-         ([k#] (fn# k#))
-         ([k# d#] (or (fn# k#) d#)))
-       (~'seq [] (seq (for [k# keyset#] [k# (fn# k#)]))))))
+                   (when (not= val# :rmap.core/nil) val#))))]
+     (rmap.core.RMap. keyset# evalled# fn#)))

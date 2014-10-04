@@ -4,7 +4,7 @@ A Clojure library designed to define literal lazy, recursive maps.
 
 ```clojure
 (def m
-  (rmap X 
+  (rmap X
     {:what "awesome!"
      :clj (str "Clojure is " (:what X))})
 (:clj m)
@@ -18,7 +18,7 @@ A Clojure library designed to define literal lazy, recursive maps.
 Add this to your leiningen dependencies
 
 ```clojure
-[functionalbytes/rmap "0.1.1"]
+[functionalbytes/rmap "0.1.2"]
 ```
 
 or as a maven dependency
@@ -35,7 +35,7 @@ and make sure Clojars is available as one of your repositories.
 
 ### The API
 
-This library defines just one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An object of type `AFn + ILookup + Seqable` is currently returned, which means it can be used with the core `get` function, as a function itself (taking one or two arguments), with keyword lookups, and all functions using `seq`s, such as `into`.
+This library defines just one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An object of type `IFn + ILookup + Seqable` is currently returned, which means it can be used with the core `get` function, as a function itself (taking one or two arguments), with keyword lookups, and all functions using `seq`s, such as `into`.
 
 For example:
 

@@ -58,34 +58,46 @@
 
 
 (comment ;; non-macro model
+  (deftype RMap [keyset evalled val-fn]
+    clojure.lang.IFn
+    (invoke [this key] (val-fn this key))
+    (invoke [this key default] (or (val-fn this key) default))
+
+    clojure.lang.ILookup
+    (valAt [this key] (val-fn this key))
+    (valAt [this key default] (or (val-fn this key) default))
+
+    clojure.lang.Seqable
+    (seq [this] (seq (for [key keyset] [key (val-fn this key)])))
+
+    Object
+    (toString [_]
+      (let [eval-now @evalled]
+        (str "{" (->> keyset
+                          (map (fn [key]
+                                 (str key " "
+                                      (if-let [val (get eval-now key)]
+                                        (if (= ::nil val) "nil" val)
+                                        "??"))) )
+                          (interpose ", ")
+                          (apply str))
+             "}"))))
+
   (let [v 5]
-    (let [keyset #{:foo :ns :count :nil}
-          evalled (atom {})
-          rm_123 (fn rm_234 [k_123]
-                   (when (get keyset k_123)
-                     (let [r (proxy [clojure.lang.AFn clojure.lang.ILookup] []
-                               (invoke
-                                 ([k_234] (rm_234 k_234))
-                                 ([k_234 d_123] (or (rm_234 k_234) d_123)))
-                               (valAt
-                                 ([k_234] (rm_234 k_234))
-                                 ([k_234 d_123] (or (rm_234 k_234) d_123))))
-                           v_123 (or (get @evalled k_123)
-                                     (locking evalled
-                                       (or (get @evalled k_123)
-                                           (get (swap! evalled assoc k_123
+    (let [keyset_123 #{:foo :ns :count :nil}
+          evalled_123 (atom {})
+          rm_123 (fn rm_234 [r k_123]
+                   (when (get keyset_123 k_123)
+                     (let [v_123 (or (get @evalled_123 k_123)
+                                     (locking evalled_123
+                                       (or (get @evalled_123 k_123)
+                                           (get (swap! evalled_123 assoc k_123
                                                        (or (condp = k_123
                                                              :foo 'bar/baz
                                                              :ns (do (println 'NAMESPACE) (namespace (:foo r)))
                                                              :count (+ (count (:ns r)) v)
                                                              :nil (println 'NIL))
-                                                           ::nil))
+                                                           :rmap.core/nil))
                                                 k_123))))]
-                       (when (not= v_123 ::nil) v_123))))]
-      (proxy [clojure.lang.AFn clojure.lang.ILookup] []
-        (invoke
-          ([k_234] (rm_123 k_234))
-          ([k_234 d_123] (or (rm_123 k_234) d_123)))
-        (valAt
-          ([k_234] (rm_123 k_234))
-          ([k_234 d_123] (or (rm_123 k_234) d_123)))))))
+                       (when (not= v_123 :rmap.core/nil) v_123))))]
+      (RMap. keyset_123 evalled_123 rm_123))))
