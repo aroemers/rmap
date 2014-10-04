@@ -45,9 +45,9 @@
   `(let [keyset# ~(set (keys m))
          evalled# (atom {})
          fn# (fn rmap# [~s key#]
-               (when (contains? keyset# key#)
+               (when-let [lock# (get keyset# key#)]
                  (let [val# (or (get @evalled# key#)
-                                (locking evalled#
+                                (locking lock#
                                   (or (get @evalled# key#)
                                       (get (swap! evalled# assoc key#
                                                   (or (condp = key#

@@ -56,6 +56,20 @@
                    :ns (namespace (get r :foo))})]
     (is (= (into {} m) {:foo 'bar/baz, :ns "bar"}))))
 
+(deftest rmap-concurrent
+  (let [a (atom 0)
+        b (atom 0)
+        m (rmap r {:a (swap! a inc)
+                   :b (reset! b (:a r))})
+        l (java.util.concurrent.CountDownLatch. 1)
+        d (java.util.concurrent.CountDownLatch. 100)]
+    (dotimes [i 50] (future (.await l) (:a m) (.countDown d)))
+    (dotimes [i 50] (future (.await l) (:b m) (.countDown d)))
+    (.countDown l)
+    (.await d)
+    (is (= @a 1))
+    (is (= @b 1))))
+
 
 (comment ;; non-macro model
   (deftype RMap [keyset evalled val-fn]
@@ -87,9 +101,9 @@
     (let [keyset_123 #{:foo :ns :count :nil}
           evalled_123 (atom {})
           rm_123 (fn rm_234 [r k_123]
-                   (when (get keyset_123 k_123)
+                   (when-let [lock_123 (get keyset_123 k_123)]
                      (let [v_123 (or (get @evalled_123 k_123)
-                                     (locking evalled_123
+                                     (locking lock_123
                                        (or (get @evalled_123 k_123)
                                            (get (swap! evalled_123 assoc k_123
                                                        (or (condp = k_123
