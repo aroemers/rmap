@@ -66,7 +66,7 @@ An example showing some of its usage:
 
 #### Immutability and state
 
-All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is (shallowly) cloned into the newly created maps. It is because of this state that I have not decided yet how equivalence should work.
+All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is (shallowly) cloned into the newly created maps.
 
 
 #### Core functions on the recursive map
@@ -99,9 +99,9 @@ Returns the total number of entries in the recursive map, whether realized or no
 
 Returns an empty, ordinary `PersistentHashMap`.
 
-##### `=`, `identical?`, `.equals`, etc
+##### `=`, `.equals`, `hash`, etc
 
-Currently unsupported, as I have yet to think of the best way to implement this. This has mostly to do with whether to take the internal, mutable state inside of a recursive map into account, i.e. the (un)realized values. Therefore it is also best to not use a recursive map as a key inside another map.
+Comparing a recursive map also means that it will be realized in full. 
 
 ##### `merge`
 

@@ -1,6 +1,7 @@
 (ns rmap.core-test
   (:require [clojure.test :refer :all]
-            [rmap.core :refer :all]))
+            [rmap.core :refer :all]
+            [collection-check :refer :all]))
 
 
 (deftest rmap-plain
@@ -95,6 +96,11 @@
   (let [m (rmap r {:a 42, :b (:a r), :c 0})]
     (:b m)
     (is (= (seq-evalled m) [[:a 42], [:b 42]]))))
+
+(deftest rmap-collection-check
+  (assert-map-like 100 (rmap r {})
+                   clojure.test.check.generators/int
+                   clojure.test.check.generators/int))
 
 
 (comment ;; non-macro model

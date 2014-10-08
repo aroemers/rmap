@@ -5,7 +5,11 @@
 
 ;;; The recursive map type.
 
-(deftype RMap [keyset evalled val-fn]
+(deftype RMap [keyset evalled val-fn meta
+               ^:unsynchronized-mutable hashC
+               ^:unsynchronized-mutable hashE]
+  clojure.lang.MapEquivalence
+
   clojure.lang.ILookup
   (valAt [this key]
     (val-fn this key))
@@ -38,17 +42,17 @@
   (empty [this]
     {})
   (equiv [this obj]
-    (throw (UnsupportedOperationException. "Not sure how to equiv yet")))
+    (and (map? obj) (= (into {} this) obj)))
 
   clojure.lang.IPersistentMap
   (assoc [this key obj]
-    (RMap. (conj keyset key) (doto (.clone evalled) (.put key obj)) val-fn))
+    (RMap. (conj keyset key) (doto (.clone evalled) (.put key obj)) val-fn meta nil nil))
   (assocEx [this key obj]
     (if (contains? this key)
       (throw (IllegalArgumentException. "Key already present"))
       (assoc this key obj)))
   (without [this key]
-    (RMap. (disj keyset key) (doto (.clone evalled) (.remove key)) val-fn))
+    (RMap. (disj keyset key) (doto (.clone evalled) (.remove key)) val-fn meta nil nil))
   (iterator [this]
     (clojure.lang.SeqIterator. (.seq this)))
 
@@ -70,9 +74,47 @@
                   (apply str))
          "}"))
   (equals [this obj]
-    (.equiv this obj))
-  (hashCode [_]
-    (throw (UnsupportedOperationException.))))
+    (or (identical? this obj) (.equiv this obj)))
+  (hashCode [this]
+    (when-not hashC
+      (set! hashC (clojure.lang.APersistentMap/mapHash (into {} this))))
+    (int hashC))
+
+  java.util.Map
+  (get [this k]
+    (.valAt this k))
+  (isEmpty [this]
+    (empty? this))
+  (size [this]
+    (count this))
+  (keySet [this]
+    keyset)
+  (put [_ _ _]
+    (throw (UnsupportedOperationException.)))
+  (putAll [_ _]
+    (throw (UnsupportedOperationException.)))
+  (clear [_]
+    (throw (UnsupportedOperationException.)))
+  (remove [_ _]
+    (throw (UnsupportedOperationException.)))
+  (values [this]
+    (->> this seq (map second)))
+  (entrySet [this]
+    (->> this seq set))
+
+  clojure.lang.IObj
+  (withMeta [this mta]
+    (if (map? mta)
+      (RMap. keyset evalled val-fn mta hashC hashE)
+      (throw (IllegalArgumentException. "Meta arg to with-meta must be map"))))
+  (meta [this]
+    meta)
+
+  clojure.lang.IHashEq
+  (hasheq [this]
+    (when-not hashE
+      (set! hashE (clojure.lang.APersistentMap/mapHasheq (into {} this))))
+    (int hashE)))
 
 ;; Remove the constructor function of the RMap type from the namespace.
 (ns-unmap 'rmap.core '->RMap)
@@ -110,7 +152,7 @@
                      (when (not= val# :rmap.core/nil) val#)))))
          evalled# (LinkedHashMap.)
          keyset# ~(set (keys m))]
-     (rmap.core.RMap. keyset# evalled# fn#)))
+     (rmap.core.RMap. keyset# evalled# fn# nil nil nil)))
 
 
 (defn seq-evalled
