@@ -72,7 +72,7 @@ All the functions on the recursive map return new objects, so it can be regarded
 
 #### Core functions on the recursive map
 
-This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal (and possibly keep) lazines.
+This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal with (and possibly keep) lazines.
 
 ##### `seq`
 
@@ -84,11 +84,12 @@ Uses `seq` in its implementation. See the subsection above.
 
 ##### `assoc`, `conj`, `without`, etc
 
-Returns a new recursive map, with the given entry added, overwritten or removed. Note that when realizing an unevaluated value in a "parent" or "derivative" recursive map, this does not infuence the others. You can even use this laziness to introduce entries that are required by the unrealized entries. For example, note how the `:b` entry uses an `:a` entry, which is added later:
+Returns a new recursive map, with the given entry or entries added, overwritten or removed. Note that when realizing an unevaluated value in a "parent" or "derivative" recursive map, this does not infuence the others. You can even use this laziness to introduce entries that are required by the unrealized entries. For example, note how the `:b` entry uses an `:a` entry, which is added later:
 
 ```clojure
-(:b (conj (rmap r {:b (:a r)}) 
-          :a 42))
+(-> (rmap r {:b (:a r)})
+    (conj :a 42)
+    :b)
 ;=> 42
 ```
 
@@ -102,7 +103,7 @@ Returns an empty, ordinary `PersistentHashMap`.
 
 ##### `=`, `.equals`, `hash`, etc
 
-Comparing or calculating a hash of a recursive map means that it will be realized in full, before the comparison or calculation is performed. Needless to say, using a recursive map in a set of other map will trigger this as well.
+Comparing or calculating a hash of a recursive map means that it will be realized in full, before the comparison or calculation is performed. Needless to say, using a recursive map in a set or other map will trigger this as well.
 
 ##### `merge`
 
