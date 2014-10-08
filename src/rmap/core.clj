@@ -2,6 +2,9 @@
   (:import [java.util Map$Entry LinkedHashMap]
            [java.io Writer]))
 
+
+;;; The recursive map type.
+
 (deftype RMap [keyset evalled val-fn]
   clojure.lang.ILookup
   (valAt [this key]
@@ -46,6 +49,8 @@
       (assoc this key obj)))
   (without [this key]
     (RMap. (disj keyset key) (doto (.clone evalled) (.remove key)) val-fn))
+  (iterator [this]
+    (clojure.lang.SeqIterator. (.seq this)))
 
   clojure.lang.Associative
   (containsKey [this key]
@@ -63,14 +68,25 @@
                                 "??"))) )
                   (interpose ", ")
                   (apply str))
-         "}")))
+         "}"))
+  (equals [this obj]
+    (.equiv this obj))
+  (hashCode [_]
+    (throw (UnsupportedOperationException.))))
 
+;; Remove the constructor function of the RMap type from the namespace.
+(ns-unmap 'rmap.core '->RMap)
+
+;; Make sure the .toString is used for the RMap type, otherwise it
+;; is evaluated completely.
 (defmethod print-dup rmap.core.RMap [o ^Writer w]
   (.write w (.toString o)))
 
 (defmethod print-method rmap.core.RMap [o ^Writer w]
   (.write w (.toString o)))
 
+
+;;; The public API
 
 (defmacro rmap
   "Defines a lazy, recursive map. That is, expressions in the values

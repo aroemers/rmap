@@ -70,48 +70,51 @@
     (is (= @a 1))
     (is (= @b 1))))
 
+(deftest rmap-assoc
+  (let [a (atom 0)
+        m (rmap r {:a (swap! a inc)
+                   :b (:a r)})
+        n (assoc m :a 5)
+        o (assoc m :c 3)]
+    (is (= (:b m) 1))
+    (is (= (:b n) 5))
+    (is (= (:b o) 2))
+    (is (= (:c o) 3))))
+
+(deftest rmap-count
+  (let [m (rmap r {:a 1, :b 2})]
+    (:a m)
+    (is (= (count m) 2))))
+
+(deftest rmap-cons
+  (let [m (rmap r {:b (:a r)})
+        n (conj m {:a 42})]
+    (is (= (:b n) 42))))
+
+(deftest rmap-seq-evalled
+  (let [m (rmap r {:a 42, :b (:a r), :c 0})]
+    (:b m)
+    (is (= (seq-evalled m) [[:a 42], [:b 42]]))))
+
 
 (comment ;; non-macro model
-  (deftype RMap [keyset evalled val-fn]
-    clojure.lang.IFn
-    (invoke [this key] (val-fn this key))
-    (invoke [this key default] (or (val-fn this key) default))
-
-    clojure.lang.ILookup
-    (valAt [this key] (val-fn this key))
-    (valAt [this key default] (or (val-fn this key) default))
-
-    clojure.lang.Seqable
-    (seq [this] (seq (for [key keyset] [key (val-fn this key)])))
-
-    Object
-    (toString [_]
-      (let [eval-now @evalled]
-        (str "{" (->> keyset
-                          (map (fn [key]
-                                 (str key " "
-                                      (if-let [val (get eval-now key)]
-                                        (if (= ::nil val) "nil" val)
-                                        "??"))) )
-                          (interpose ", ")
-                          (apply str))
-             "}"))))
-
   (let [v 5]
-    (let [keyset_123 #{:foo :ns :count :nil}
-          evalled_123 (atom {})
-          rm_123 (fn rm_234 [r k_123]
-                   (when-let [lock_123 (get keyset_123 k_123)]
-                     (let [v_123 (or (get @evalled_123 k_123)
-                                     (locking lock_123
-                                       (or (get @evalled_123 k_123)
-                                           (get (swap! evalled_123 assoc k_123
-                                                       (or (condp = k_123
-                                                             :foo 'bar/baz
-                                                             :ns (do (println 'NAMESPACE) (namespace (:foo r)))
-                                                             :count (+ (count (:ns r)) v)
-                                                             :nil (println 'NIL))
-                                                           :rmap.core/nil))
-                                                k_123))))]
-                       (when (not= v_123 :rmap.core/nil) v_123))))]
-      (RMap. keyset_123 evalled_123 rm_123))))
+    (let [fn# (fn [r key#]
+                (let [keyset# (.keyset r)
+                      evalled# (.)]
+                  (when-let [lock# (get keyset# key#)]
+                    (let [val# (or (get evalled# key#)
+                                   (locking lock#
+                                     (or (get evalled# key#)
+                                         (let [val# (or (condp = key#
+                                                          :foo 'bar/baz
+                                                          :ns (do (println 'NAMESPACE) (namespace (:foo r)))
+                                                          :count (+ (count (:ns r)) v)
+                                                          :nil (println 'NIL))
+                                                        :rmap.core/nil)]
+                                           (.put evalled# key#)
+                                           val#))))]
+                      (when (not= val# :rmap.core/nil) val#)))))
+          keyset# #{:foo :ns :count :nil}
+          evalled# (LinkedHashMap.)]
+      (RMap. keyset# evalled# fn#))))
