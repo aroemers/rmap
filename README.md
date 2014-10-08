@@ -51,6 +51,8 @@ An example showing some of its usage:
                  :cnt (+ v (count (:ns r)))
                  k (println "Only evaluated once, to nil.")})
       n (assoc m :alice 'bob, :foo 'eve/baz)]
+      
+  m  ;=> {:foo ??, :ns ??, :cnt ??, [1 2 3] ??}
 
   (:cnt m)           ;=> 103
   (get m [1 2 3])    ;=> nil
