@@ -19,7 +19,7 @@ A Clojure library designed to define literal lazy, recursive maps.
 Add this to your leiningen dependencies
 
 ```clojure
-[functionalbytes/rmap "0.1.2"]
+[functionalbytes/rmap "0.2.0"]
 ```
 
 or as a maven dependency
@@ -28,7 +28,7 @@ or as a maven dependency
 <dependency>
     <groupId>functionalbytes</groupId>
     <artifactId>rmap</artifactId>
-    <version>0.1.2</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -37,9 +37,9 @@ and make sure Clojars is available as one of your repositories.
 
 ### The API
 
-This library defines one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with the most of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
+This library defines one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements all of the necessary interfaces to act like a standard map, such as `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with all of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
 
-The API also contains one function, called `seq-evalled`, giving a sequence of realized entries only (in order of realization). See the info on `seq` in the section "Core functions on the recursive map" for more on this.
+The API also defines one function, called `seq-evalled`, giving a sequence of realized entries only (in order of realization). This is because many core functions may or will realize all the values as a side effect. See the section "Core functions on the recursive map" below for more on this.
 
 An example showing some of its usage:
 
@@ -61,6 +61,7 @@ An example showing some of its usage:
 
   (map first (seq-evalled m))  ;=> (:foo :ns :cnt [1 2 3])
   (map first (seq-evalled n))  ;=> (:alice :foo)
+  (into {} (seq-evalled n))    ;=> {:alice bob, :foo eve/baz}
   (:ns n)                      ;=> "eve"
 ```
 
@@ -71,7 +72,7 @@ All the functions on the recursive map return new objects, so it can be regarded
 
 #### Core functions on the recursive map
 
-This subsection discusses some of the core Clojure functions, and how they work on a recursive map.
+This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal (and possibly keep) lazines.
 
 ##### `seq`
 
@@ -101,11 +102,11 @@ Returns an empty, ordinary `PersistentHashMap`.
 
 ##### `=`, `.equals`, `hash`, etc
 
-Comparing a recursive map also means that it will be realized in full. 
+Comparing or calculating a hash of a recursive map means that it will be realized in full, before the comparison or calculation is performed. Needless to say, using a recursive map in a set of other map will trigger this as well.
 
 ##### `merge`
 
-When a recursive map is given as the second or later argument to merge, it is fully realized. When given as a first argument, it is unaffected.
+When a recursive map is given as the second or later argument to merge, it is fully realized. When given as the first argument, it is unaffected.
 
 
 ## License
