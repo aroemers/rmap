@@ -66,7 +66,7 @@ An example showing some of its usage:
 
 #### Immutability and state
 
-All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is cloned into the newly created objects. It is because of this state that I have not decided yet how equivalence should work.
+All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is (shallowly) cloned into the newly created maps. It is because of this state that I have not decided yet how equivalence should work.
 
 
 #### Core functions on the recursive map
@@ -75,7 +75,7 @@ This subsection discusses some of the core Clojure functions, and how they work 
 
 ##### `seq`
 
-This realizes all entries in the recursive map. This is useful for converting the recursive map to a normal map, using `(into {} <rmap>)`. It may be less appropriate when you want to know all the keys in the recursive map, without realizing any unevaluated values. The standard `keys` functions uses `seq`. Therefore, a function called `seq-evalled` is available, giving a sequence of realized entries only. These entries are also in the order in which they were evaluated.
+This realizes all entries in the recursive map. This is useful for situations like converting the recursive map to a normal map, using `(into {} <rmap>)`. It may be less appropriate for situations like where you want to know all the keys in the recursive map, without realizing any unevaluated values. The standard `keys` functions uses `seq`. Therefore, a function called `seq-evalled` is available, returning a sequence of realized entries only. These entries are also in the order in which they were evaluated.
 
 ##### `keys`, `into`, etc
 
