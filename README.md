@@ -37,11 +37,11 @@ and make sure Clojars is available as one of your repositories.
 
 ### The API
 
-This library defines one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with the most of the core functions, as a function itself (taking one or two arguments), with keyword lookups, and all functions using `seq`s, such as `into` and `keys`.
+This library defines one macro, called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with the most of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
 
-The API also contains one function, called `seq-evalled`, giving a seq of realized entries (in order of realization). See the info on `seq` in the section "Core functions on the recursive map" for more on this.
+The API also contains one function, called `seq-evalled`, giving a sequence of realized entries only (in order of realization). See the info on `seq` in the section "Core functions on the recursive map" for more on this.
 
-For example:
+An example showing some of its usage:
 
 ```clojure
 (let [v 100
@@ -57,9 +57,9 @@ For example:
   (m :nope :default) ;=> :default
   (into {} m)        ;=> {:foo bar/baz, :ns "bar", :cnt 103, [1 2 3] nil}
 
-  (seq-evalled m)    ;=> (:foo :ns :cnt [1 2 3])
-  (seq-evalled n)    ;=> (:alice :foo)
-  (:ns n)            ;=> "eve"
+  (map first (seq-evalled m))  ;=> (:foo :ns :cnt [1 2 3])
+  (map first (seq-evalled n))  ;=> (:alice :foo)
+  (:ns n)                      ;=> "eve"
 ```
 
 #### Immutability and state
@@ -73,7 +73,7 @@ This subsection discusses some of the core Clojure functions, and how they work 
 
 ##### `seq`
 
-This realizes all entries in the recursive map. This is useful for converting the recursive map to a normal map, using `(into {} <rmap>)`. It may be less appropriate when you want to know all the keys in the recursive map, without realizing any unevaluated values. The standard `keys` functions uses `seq`. Therefore, a function called `seq-evalled` is available, giving a seq of realized entries. These entries are also in the order in which they were evaluated.
+This realizes all entries in the recursive map. This is useful for converting the recursive map to a normal map, using `(into {} <rmap>)`. It may be less appropriate when you want to know all the keys in the recursive map, without realizing any unevaluated values. The standard `keys` functions uses `seq`. Therefore, a function called `seq-evalled` is available, giving a sequence of realized entries only. These entries are also in the order in which they were evaluated.
 
 ##### `keys`, `into`, etc
 
@@ -81,10 +81,11 @@ Uses `seq` in its implementation. See the subsection above.
 
 ##### `assoc`, `conj`, `without`, etc
 
-Returns a new recursive map, with the given entry added or overwritten. Note that when realizing an unevaluated value in a "parent" or "derivative" recursive map, this does not infuence the others. You can even use this laziness to introduce entries that are required by the unrealized entries. For example, note how the `:b` entry uses an `:a` entry, which is added later:
+Returns a new recursive map, with the given entry added, overwritten or removed. Note that when realizing an unevaluated value in a "parent" or "derivative" recursive map, this does not infuence the others. You can even use this laziness to introduce entries that are required by the unrealized entries. For example, note how the `:b` entry uses an `:a` entry, which is added later:
 
 ```clojure
-(:b (conj (rmap r {:b (:a r)}) :a 42))
+(:b (conj (rmap r {:b (:a r)}) 
+          :a 42))
 ;=> 42
 ```
 
