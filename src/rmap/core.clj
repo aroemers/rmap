@@ -91,19 +91,7 @@
 (defmacro rmap
   "Defines a lazy, recursive map. That is, expressions in the values
   of the map can use the given symbol to access other keys within the
-  map. An object of clojure.lang.IFn/ILookup/Seqable is returned.
-
-  For example:
-  (let [v 100
-        k [1 2 3]
-        m (rmap r {:foo 'bar/baz
-                   :ns  (namespace (get r :foo))
-                   :cnt (+ v (count (:ns r)))
-                   k (println \"Only evaluated once, to nil.\")})]
-    (:cnt m) ;=> 103
-    (get m [1 2 3]) ;=> nil
-    (m :nope :default) ;=> :default
-    (into {} m)) ;=> {:foo bar/baz, :ns \"bar\", :cnt 103, [1 2 3] nil}"
+  map. See README for usage and examples."
   [s m]
   `(let [fn# (fn rmap# [~s key#]
                (let [keyset# (.keyset ~s)

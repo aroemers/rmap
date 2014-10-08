@@ -64,7 +64,7 @@ An example showing some of its usage:
 
 #### Immutability and state
 
-All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This is also why I have not decided yet how equivalence should work.
+All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is cloned into the newly created objects. It is because of this state that I have not decided yet how equivalence should work.
 
 
 #### Core functions on the recursive map
