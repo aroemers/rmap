@@ -1,4 +1,6 @@
-# rmap
+# rmap 
+
+[![Build Status](https://snap-ci.com/aroemers/rmap/branch/master/build_image)](https://snap-ci.com/aroemers/rmap/branch/master)
 
 A Clojure library designed to define literal lazy, recursive maps.
 
@@ -10,7 +12,6 @@ A Clojure library designed to define literal lazy, recursive maps.
 (:clj m)
 ;=> "Clojure is awesome!"
 ```
-
 
 ## Usage
 
