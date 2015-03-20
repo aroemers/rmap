@@ -170,12 +170,12 @@ An example showing some of its usage (in _per instance_ realization mode):
   ;; realize entry inside a recursive map that now has the recursive entry
   (:b o)             ;=> 42
 
-  ;; get a map of what was realized until now
-  ;; in "structural sharing" mode, the :ns entry would have "bar" as its value
+  ;; get a map of what was realized until now in o
+  ;; in "structural sharing" mode, the entries :foo, :ns, :cnt and [1 2 3] would also have been realized
   (binding [*unrealized* :rmap.core/ignore)]
-    (into {} o))     ;=> {:foo eve/baz, :ns "eve", :cnt 103, :b 42, :a 41}
+    (into {} o))     ;=> {:b 42, :a 41}
 
-  ;; get a map of everything realized (which only adds [1 2 3])
+  ;; get a map of everything realized
   (into {} o)        ;=> {:foo eve/baz, :ns "eve", :cnt 103, [1 2 3] nil, :b 42, :a 41}
 ```
 
