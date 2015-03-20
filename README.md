@@ -37,7 +37,7 @@ The recursive map can now be used with any Clojure core function.
 Add this to your leiningen dependencies (**latest stable build**, the rest of this README may already be in the future!!1)
 
 ```clojure
-[functionalbytes/rmap "0.3.0"]
+[functionalbytes/rmap "0.4.0"]
 ```
 
 or as a maven dependency
@@ -46,7 +46,7 @@ or as a maven dependency
 <dependency>
     <groupId>functionalbytes</groupId>
     <artifactId>rmap</artifactId>
-    <version>0.3.0</version>
+    <version>0.4.0</version>
 </dependency>
 ```
 
