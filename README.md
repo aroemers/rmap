@@ -15,9 +15,15 @@ A Clojure library designed to define literal lazy, recursive maps.
 
 ## Changelog
 
-### 0.3.0 - BREAKING
+### 0.4.0 - Both structural sharing as per instance realization
+***BREAKING with 0.3.0, COMPATIBLE with 0.2.0***
 
-The semantics (and internals) have been changed to a simpler and more memory efficient model. The main difference is that the structural sharing now applies to lazy entries as well. Therefore, the semantics of the API and the `RMap` type regarding "parent" maps have changed a bit. The changes may not apply to your current use, but please test when you upgrade. For more info on the slightly different semantics, read the _API_ section.
+While version 0.3.0 was an update to have structural sharing of the lazily evaluated entries, we also found use cases for the old semantics; realizing an entry in a "child" recursive map does not realize the entry in the "parent" map. This version now supports both semantics, where the latter is the default, as this is more clojuresque.
+
+### 0.3.0 - Structural sharing semantics
+***BREAKING with 0.2.0***
+
+The semantics (and internals) have been changed to a simpler and more memory efficient model. The main difference is that the structural sharing now applies to lazy entries as well. Therefore, the semantics of the API and the `RMap` type regarding "parent" and "sibling" maps have changed a bit. The changes may not apply to your current use, but please test when you upgrade. For more info on the slightly different semantics, read the _API_ section.
 
 ### 0.2.0 - Full clojure.core compatibility
 
@@ -28,7 +34,7 @@ The recursive map can now be used with any Clojure core function.
 
 ### Adding to your project
 
-Add this to your leiningen dependencies
+Add this to your leiningen dependencies (**latest stable build**, the rest of this README may already be in the future!!1)
 
 ```clojure
 [functionalbytes/rmap "0.3.0"]
@@ -40,7 +46,7 @@ or as a maven dependency
 <dependency>
     <groupId>functionalbytes</groupId>
     <artifactId>rmap</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
 </dependency>
 ```
 
@@ -53,10 +59,18 @@ and make sure Clojars is available as one of your repositories.
 
 The main macro in this library is called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements all of the necessary interfaces to act like a standard map, such as `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with all of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
 
-Whenever an entry is realized, it is done so in the context of the given recursive map instance. Although associating and disassociating entries returns a new recursive map instance, its lazy values are structurally shared. This means that when an entry is realized, it is realized in every instance that still had this same entry. The context however may differ. For instance, have a look at these examples:
+Whenever an entry is realized, it is done so in the context of the given recursive map instance. A recursive map has two realization modes.
+
+#### Per instance realization
+
+By default, whenever a lazy entry is realized, it is only realized for that particular instance. Only descendants (like when `assoc`ing) will have the realized entry, if it has been realized at that time. This means that "parent" instances will still have the unrealized entry. 
+
+#### Structural sharing realization
+
+Although associating and disassociating entries returns a new recursive map instance, its lazy values can structurally shared. This is enabled by adding a truthful argument to the `rmap` macro. Enabling this means that when an entry is realized, it is realized in every instance that still has this same entry. The context however in which an entry is realized may differ. For instance, have a look at these examples:
 
 ```clojure
-(let [x (rmap r {:a 1, :b (:a r)})]
+(let [x (rmap r {:a 1, :b (:a r)} true)]
       y (assoc x :a 2)]
    x        ;=> {:a ??, :b ??}
    y        ;=> {:a 2, :b ??}
@@ -68,7 +82,7 @@ Whenever an entry is realized, it is done so in the context of the given recursi
    y        ;=> {:a 2, :b 1})  ; here :b is also 1
 
 
-(let [x (rmap r {:a 1, :b (:a r)})]
+(let [x (rmap r {:a 1, :b (:a r)} true)]
       y (assoc x :a 2)]
    x        ;=> {:a ??, :b ??}
    y        ;=> {:a 2, :b ??}
@@ -79,6 +93,8 @@ Whenever an entry is realized, it is done so in the context of the given recursi
    x        ;=> {:a 1, :b 2}   ; here :b is also 2
    y        ;=> {:a 2, :b 2})
 ```
+
+This mode can be useful, for being sure that a lazy entry is really only evaluated once. But be careful. If another thread realizes an entry in a different (possibly unknown) context, the value of that entry might not be what you expect in your own context. This can be a feature, or downright annoying. 
 
 #### `(assoc-lazy rmap X key form)`
 
@@ -96,8 +112,6 @@ This function merges two or more recursive maps, without realizing any unrealize
 
 z         ;=> {:extra ??, :ns ??, :foo ??}
 (:ns z)   ;=> "eve"
-x         ;=> {:ns eve, :foo ??}
-y         ;=> {:extra ??, :foo eve/baz}
 ```
 
 #### `*unrealized*`
@@ -120,7 +134,7 @@ As calling `seq` on a recursive map normally evaluates all the entries, this fun
 
 ### Example use
 
-An example showing some of its usage:
+An example showing some of its usage (in _per instance_ realization mode):
 
 ```clojure
 (let [v 100
@@ -157,17 +171,17 @@ An example showing some of its usage:
   (:b o)             ;=> 42
 
   ;; get a map of what was realized until now
-  ;; notice :ns is set to "bar", as its evaluation context was m
+  ;; in "structural sharing" mode, the :ns entry would have "bar" as its value
   (binding [*unrealized* :rmap.core/ignore)]
-    (into {} o))     ;=> {:foo eve/baz, :ns "bar", :cnt 103, :b 42, :a 41}
+    (into {} o))     ;=> {:foo eve/baz, :ns "eve", :cnt 103, :b 42, :a 41}
 
   ;; get a map of everything realized (which only adds [1 2 3])
-  (into {} o)        ;=> {:foo eve/baz, :ns "bar", :cnt 103, [1 2 3] nil, :b 42, :a 41}
+  (into {} o)        ;=> {:foo eve/baz, :ns "eve", :cnt 103, [1 2 3] nil, :b 42, :a 41}
 ```
 
 ### Immutability and state
 
-All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values. This state is structurally shared.
+All the functions on the recursive map return new objects, so it can be regarded as immutable. Still, keep in mind that a recursive map does have state, as it lazily realizes its values.
 
 
 ### Core functions on the recursive map
@@ -207,7 +221,7 @@ Comparing or calculating a hash of a recursive map means that it will be realize
 
 #### `merge`
 
-When a recursive map is given as the second or later argument to `merge`, it is fully realized. When given as the first argument, it is unaffected (except for structurally shared entries of course). To merge two or more recursive maps, while keeping the unrealized forms, use the `merge-lazy` function as explained above.
+When a recursive map is given as the second or later argument to `merge`, it is fully realized. When given as the first argument, it is unaffected (except for structurally shared entries of course, if that mode is enabled). To merge two or more recursive maps, while not realizing the unrealized forms, use the `merge-lazy` function as explained above.
 
 
 ## License

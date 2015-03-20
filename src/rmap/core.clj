@@ -1,5 +1,5 @@
 (ns rmap.core
-  (:import [java.util Map$Entry LinkedHashMap]
+  (:import [java.util Map$Entry]
            [java.io Writer]))
 
 
@@ -10,14 +10,18 @@
 
 ;;; The recursive map type.
 
-(deftype RMap [data meta]
+;; evalled = (atom {key value}) / nil
+;; fns     = {key fn}
+;; meta    = {}
+;; sharing = boolean
+(deftype RMap [evalled fns meta sharing]
   clojure.lang.MapEquivalence
 
   clojure.lang.ILookup
   (valAt [this key]
     (.valAt this key nil))
   (valAt [this key default]
-    (if-let [f (get data key)]
+    (if-let [f (get fns key)]
       (f this)
       default))
 
@@ -33,11 +37,11 @@
                    (= (and (bound? (var *unrealized*))
                            (= *unrealized* :rmap.core/ignore)
                            (.val me)) :rmap.core/ignore))
-                 (for [key (keys data)] (.entryAt this key)))))
+                 (for [key (keys fns)] (.entryAt this key)))))
 
   clojure.lang.IPersistentCollection
   (count [this]
-    (count (keys data)))
+    (count (keys fns)))
   (cons [this obj]
     (if (instance? Map$Entry obj)
       (assoc this (.getKey obj) (.getValue obj))
@@ -49,25 +53,25 @@
                   (assoc m (.getKey entry) (.getValue entry)))
                 this (seq obj)))))
   (empty [this]
-    (RMap. {} nil))
+    (RMap. (when-not sharing (atom {})) {} nil sharing))
   (equiv [this obj]
     (and (map? obj) (= (into {} this) obj)))
 
   clojure.lang.IPersistentMap
   (assoc [this key obj]
-    (RMap. (assoc data key (fn [_] obj)) meta))
+    (RMap. (when-not sharing (atom @evalled)) (assoc fns key (fn [_] obj)) meta sharing))
   (assocEx [this key obj]
-    (if (contains? (keys data) key)
+    (if (contains? (keys fns) key)
       (throw (IllegalArgumentException. "Key already present"))
       (assoc this key obj)))
   (without [this key]
-    (RMap. (dissoc data key) meta))
+    (RMap. (when-not sharing (atom (dissoc @evalled key))) (dissoc fns key) meta sharing))
   (iterator [this]
     (clojure.lang.SeqIterator. (seq this)))
 
   clojure.lang.Associative
   (containsKey [this key]
-    (contains? (set (keys data)) key))
+    (contains? (set (keys fns)) key))
   (entryAt [this key]
     (clojure.lang.MapEntry. key (.valAt this key)))
 
@@ -92,7 +96,7 @@
   (size [this]
     (count this))
   (keySet [this]
-    (keys data))
+    (keys fns))
   (put [_ _ _]
     (throw (UnsupportedOperationException.)))
   (putAll [_ _]
@@ -109,7 +113,7 @@
   clojure.lang.IObj
   (withMeta [this mta]
     (if (map? mta)
-      (RMap. data mta)
+      (RMap. (when-not sharing (atom @evalled)) fns mta sharing)
       (throw (IllegalArgumentException. "Meta arg to with-meta must be map"))))
   (meta [this]
     meta)
@@ -139,36 +143,54 @@
   a new recursive map."
   [r s k f]
   `(rmap.core.RMap.
-    (assoc (.data ~r) ~k
-           (let [v# (promise)]
-             (fn [~s]
-               (if (realized? v#)
-                 @v#
-                 (if (bound? (var *unrealized*))
-                   *unrealized*
-                   (locking v#
-                     (if (realized? v#)
-                       @v#
-                       @(deliver v# ~f))))))))
-    (.meta ~r)))
+    (when-not (.sharing ~r) (atom @(.evalled ~r)))
+    (let [k# ~k]
+      (assoc (.fns ~r) k#
+             (if (.sharing ~r)
+               (let [v# (promise)]
+                 (fn [~s]
+                   (if (realized? v#)
+                     @v#
+                     (if (bound? (var *unrealized*))
+                       *unrealized*
+                       (locking v#
+                         (if (realized? v#)
+                           @v#
+                           @(deliver v# ~f)))))))
+               (fn [~s]
+                 (if (contains? @(.evalled ~s) k#)
+                   (get @(.evalled ~s) k#)
+                   (if (bound? (var *unrealized*))
+                     *unrealized*
+                     (locking k#
+                       (if (contains? @(.evalled ~s) k#)
+                         (get @(.evalled ~s) k#)
+                         (get (swap! (.evalled ~s) assoc k# ~f) k#)))))))))
+    (.meta ~r)
+    (.sharing ~r)))
 
 
 (defmacro rmap
   "Defines a lazy, recursive map. That is, expressions in the values
   of the map can use the given symbol `s` to access other keys within
   the map. See README for usage and examples."
-  [s m]
-  `(-> (rmap.core.RMap. {} nil)
-       ~@(for [[k f] m]
-           `(assoc-lazy ~s ~k ~f))))
+  ([s m]
+     `(rmap ~s ~m false))
+  ([s m sharing]
+     `(-> (rmap.core.RMap. (when-not ~sharing (atom {})) {} nil ~sharing)
+          ~@(for [[k f] m]
+              `(assoc-lazy ~s ~k ~f)))))
 
 
 (defn merge-lazy
   "Merges two or more recursive maps, without realizing any unrealized
   values. Returns a new recursive map."
   [m1 m2 & mx]
-  (RMap. (apply merge (.data m1) (.data m2) (map #(.data %) mx))
-         (apply merge (.meta m1) (.meta m2) (map #(.meta %) mx))))
+  (RMap. (when-not (.sharing m1)
+           (atom (apply merge @(.evalled m1) @(.evalled m2) (map #(-> % .evalled deref) mx))))
+         (apply merge (.fns m1) (.fns m2) (map #(.fns %) mx))
+         (apply merge (.meta m1) (.meta m2) (map #(.meta %) mx))
+         (.sharing m1)))
 
 
 (defn seq-evalled

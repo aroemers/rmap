@@ -1,4 +1,4 @@
-(defproject functionalbytes/rmap "0.3.0"
+(defproject functionalbytes/rmap "0.4.0"
   :description "A Clojure library designed to define literal lazy, recursive maps."
   :url "http://github.com/aroemers/rmap"
   :license {:name "Eclipse Public License"
