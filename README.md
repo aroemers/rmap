@@ -212,7 +212,7 @@ When a recursive map is given as the second or later argument to `merge`, it is 
 
 ## License
 
-Copyright © 2014 Functional Bytes
+Copyright © 2014-2015 Functional Bytes
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
