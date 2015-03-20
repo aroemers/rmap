@@ -102,9 +102,9 @@ y         ;=> {:extra ??, :foo eve/baz}
 
 #### `*unrealized*`
 
-A dynamic variable is available as well, called `*unrealized*`. By default it is unbound. When it is bound, its value is used for unrealized entries whenever such entry is requested. That entry will stay unrealized. Many core library functions evaluate all entries inside a map, such as `seq` and `=`. Binding the variable to prevents this.
+A dynamic variable is available as well, called `*unrealized*`. By default it is unbound. When it is bound, its value is used for unrealized entries whenever such entry is requested. That entry will stay unrealized. Many core library functions evaluate all entries inside a map, such as `seq` and `=`. Binding the variable to a value prevents this.
 
-When the variable is bound to `:rmap.core/ignore`, the entry is ignored by the `seq` implementaion of `RMap`. More on lazyness en realization can be found in the section _Core function on the recursive map_.
+When the variable is bound to `:rmap.core/ignore`, the entry is ignored by the `seq` implementaion of `RMap`. More on lazyness and realization of entries with regard to Clojure's core functions can be found in the section _Core function on the recursive map_.
 
 Also, asking for a specific unrealized value with `*unrealized*` bound to a value, is just silly:
 
@@ -172,7 +172,7 @@ All the functions on the recursive map return new objects, so it can be regarded
 
 ### Core functions on the recursive map
 
-This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal with (and possibly keep) lazines.
+This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal with (and possibly keep) laziness.
 
 #### `seq`
 
@@ -207,7 +207,7 @@ Comparing or calculating a hash of a recursive map means that it will be realize
 
 #### `merge`
 
-When a recursive map is given as the second or later argument to `merge`, it is fully realized. When given as the first argument, it is unaffected. To merge two or more recursive maps, while keeping the unrealized forms, use the `merge-lazy` function as explained above.
+When a recursive map is given as the second or later argument to `merge`, it is fully realized. When given as the first argument, it is unaffected (except for structurally shared entries of course). To merge two or more recursive maps, while keeping the unrealized forms, use the `merge-lazy` function as explained above.
 
 
 ## License
