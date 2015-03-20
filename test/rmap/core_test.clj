@@ -47,10 +47,16 @@
     (is (= @a 0))
     (is (= (get m :nil) nil))
     (is (= @a 1))
-    (is (= (get m :nil :default) :default))
-    (is (= (m :nil :default) :default))
-    (is (= (:nil m :default) :default))
+    (is (= (get m :nil :default) nil))
+    (is (= (m :nil :default) nil))
+    (is (= (:nil m :default) nil))
     (is (= @a 1))))
+
+(deftest rmap-default
+  (let [m (rmap r {})]
+    (is (= (get m :foo :default) :default))
+    (is (= (m :foo :default) :default))
+    (is (= (:foo m :default) :default))))
 
 (deftest rmap-seq
   (let [m (rmap r {:foo 'bar/baz
@@ -72,15 +78,8 @@
     (is (= @b 1))))
 
 (deftest rmap-assoc
-  (let [a (atom 0)
-        m (rmap r {:a (swap! a inc)
-                   :b (:a r)})
-        n (assoc m :a 5)
-        o (assoc m :c 3)]
-    (is (= (:b m) 1))
-    (is (= (:b n) 5))
-    (is (= (:b o) 2))
-    (is (= (:c o) 3))))
+  (let [m (assoc (rmap r {:b (:a r)}) :a 42)]
+    (is (= (:b m) 42))))
 
 (deftest rmap-count
   (let [m (rmap r {:a 1, :b 2})]
@@ -95,7 +94,7 @@
 (deftest rmap-seq-evalled
   (let [m (rmap r {:a 42, :b (:a r), :c 0})]
     (:b m)
-    (is (= (seq-evalled m) [[:a 42], [:b 42]]))))
+    (is (= (set (seq-evalled m)) #{[:a 42], [:b 42]}))))
 
 (deftest rmap-collection-check
   (assert-map-like 100 (rmap r {})
@@ -124,3 +123,53 @@
           keyset# #{:foo :ns :count :nil}
           evalled# (LinkedHashMap.)]
       (RMap. keyset# evalled# fn#))))
+
+(comment ;; non-macro model
+  (deftype RMap [m]
+    clojure.lang.ILookup
+    (valAt [this key]
+      (.valAt this key nil))
+    (valAt [this key default]
+      (if-let [f (get m key)]
+        (f this)
+        default))
+
+    clojure.lang.IPersistentMap
+    (assoc [this key obj]
+      (RMap. (assoc m key obj)))
+
+    clojure.lang.Associative
+    (containsKey [this key]
+      (contains? (keys m) key))
+    (entryAt [this key]
+      (clojure.lang.MapEntry. key (.valAt this key)))
+
+    clojure.lang.Seqable
+    (seq [this]
+      (seq (for [key (keys m)] (.entryAt this key)))))
+
+  (defmacro assoc-lazy
+    [r s k f]
+    `(assoc ~r ~k
+            (let [v# (promise)]
+              (fn [~s]
+                (if (realized? v#)
+                  @v#
+                  (locking v#
+                    (if (realized? v#)
+                      @v#
+                      @(deliver v# ~f))))))))
+
+  (defmacro rmap
+    [s m]
+    `(-> (RMap. {})
+         ~@(for [[k f] m]
+             `(assoc-lazy ~s ~k ~f))))
+
+  (let [v 5]
+    (-> (rmap r {:foo 'bar/baz
+                 :ns (do (println 'NAMESPACE) (namespace (:foo r)))
+                 :count (+ (count (:ns r)) v)
+                 :nil (println 'NIL)
+                 :b (:a r)})
+        (assoc-lazy r :a 42))))
