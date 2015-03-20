@@ -1,5 +1,7 @@
 # rmap
 
+[![Build Status](https://snap-ci.com/aroemers/rmap/branch/master/build_image)](https://snap-ci.com/aroemers/rmap/branch/master)
+
 A Clojure library designed to define literal lazy, recursive maps.
 
 ```clojure
@@ -58,25 +60,25 @@ Whenever an entry is realized, it is done so in the context of the given recursi
       y (assoc x :a 2)]
    x        ;=> {:a ??, :b ??}
    y        ;=> {:a 2, :b ??}
-   
+
    ;; execute :b in the context of x
    (:b x)   ;=> 1
-   
+
    x        ;=> {:a 1, :b 1}
    y        ;=> {:a 2, :b 1})  ; here :b is also 1
-   
-   
+
+
 (let [x (rmap r {:a 1, :b (:a r)})]
       y (assoc x :a 2)]
    x        ;=> {:a ??, :b ??}
    y        ;=> {:a 2, :b ??}
-   
+
    ;; execute :b in the context of y
    (:b y)   ;=> 2
-   
+
    x        ;=> {:a 1, :b 2}   ; here :b is also 2
    y        ;=> {:a 2, :b 2})
-```   
+```
 
 #### `(assoc-lazy rmap X key form)`
 
@@ -128,39 +130,39 @@ An example showing some of its usage:
                  :cnt (+ v (count (:ns r)))                   ; using local binding, double recursion
                  k (println "Only evaluated once, to nil.")   ; arbritary key, nil value
                  :b (inc (:a r))})                            ; recursion to (not yet) existing entry
-                 
+
       n (assoc m :foo 'eve/baz)                               ; update :foo with non-lazy value
-      
+
       o (assoc-lazy n :a 41)]                                 ; add key with lazy value
 
   ;; nothing realized
   m  ;=> {:foo ??, :ns ??, :cnt ??, [1 2 3] ?? :b ??}
-  
+
   ;; non-lazy value added
   n  ;=> {:foo ??, :ns ??, :cnt ??, [1 2 3] ?? :b ?? :foo eve/baz}
-  
+
   ;; lazy value added
   o  ;=> {:foo ??, :ns ??, :cnt ??, [1 2 3] ?? :b ?? :foo eve/baz :a ??}
 
   ;; realizing :foo -> :ns -> :cnt
   (:cnt m)           ;=> 103
-  
+
   ;; realizing arbritary key
   (get m [1 2 3] 'NOT-SHOWN)  ;=> nil
-  
+
   ;; fallback to a default
   (m :nope :default) ;=> :default
-  
+
   ;; realize entry inside a recursive map that now has the recursive entry
   (:b o)             ;=> 42
-  
+
   ;; get a map of what was realized until now
   ;; notice :ns is set to "bar", as its evaluation context was m
   (binding [*unrealized* :rmap.core/ignore)]
     (into {} o))     ;=> {:foo eve/baz, :ns "bar", :cnt 103, :b 42, :a 41}
-    
+
   ;; get a map of everything realized (which only adds [1 2 3])
-  (into {} o)        ;=> {:foo eve/baz, :ns "bar", :cnt 103, [1 2 3] nil, :b 42, :a 41}  
+  (into {} o)        ;=> {:foo eve/baz, :ns "bar", :cnt 103, [1 2 3] nil, :b 42, :a 41}
 ```
 
 ### Immutability and state
@@ -170,7 +172,7 @@ All the functions on the recursive map return new objects, so it can be regarded
 
 ### Core functions on the recursive map
 
-This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal with (and possibly keep) lazines. 
+This subsection discusses some of the core Clojure functions, and how they work on the recursive maps. Although this is far from exhaustive, it should give a general idea of how to deal with (and possibly keep) lazines.
 
 #### `seq`
 
