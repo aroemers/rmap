@@ -16,14 +16,14 @@ A Clojure library designed to define literal lazy, recursive maps.
 ## Changelog
 
 ### 0.4.0 - Both structural sharing as per instance realization
-***BREAKING with 0.3.0, COMPATIBLE with 0.2.0***
 
-While version 0.3.0 was an update to have structural sharing of the lazily evaluated entries, we also found use cases for the old semantics; realizing an entry in a "child" recursive map does not realize the entry in the "parent" map. This version now supports both semantics, where the latter is the default, as this is more clojuresque.
+The library internals have changed to a simpler and more memory efficient model. This model also allows adding new lazy entries to a recursive map. 
 
-### 0.3.0 - Structural sharing semantics
-***BREAKING with 0.2.0***
+In addition to that, this version supports a new realization mode: _structural sharing_ of the lazy values. When enabled, realizing an entry in a recursive map means that all structurally shared recursive maps that still have this entry will have it realized as well. This mode has to be enabled explicitly. More on this can be read in the _API_ section. 
 
-The semantics (and internals) have been changed to a simpler and more memory efficient model. The main difference is that the structural sharing now applies to lazy entries as well. Therefore, the semantics of the API and the `RMap` type regarding "parent" and "sibling" maps have changed a bit. The changes may not apply to your current use, but please test when you upgrade. For more info on the slightly different semantics, read the _API_ section.
+**New API:** `assoc-lazy`, `merge-lazy` and `*unrealized*`.
+
+**Updated API:** `rmap` and `seq-evalled`.
 
 ### 0.2.0 - Full clojure.core compatibility
 
@@ -57,7 +57,7 @@ and make sure Clojars is available as one of your repositories.
 
 #### `(rmap X {...})`
 
-The main macro in this library is called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements all of the necessary interfaces to act like a standard map, such as `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with all of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
+The main macro in this library is called `rmap`. It takes two (or three) arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements all of the necessary interfaces to act like a standard map, such as `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with all of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
 
 Whenever an entry is realized, it is done so in the context of the given recursive map instance. A recursive map has two realization modes.
 
@@ -134,7 +134,7 @@ As calling `seq` on a recursive map normally evaluates all the entries, this fun
 
 ### Example use
 
-An example showing some of its usage (in _per instance_ realization mode):
+An example showing some of its usage (in the default _per instance_ realization mode):
 
 ```clojure
 (let [v 100
