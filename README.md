@@ -1,5 +1,7 @@
 # rmap
 
+[![Join the chat at https://gitter.im/aroemers/rmap](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/aroemers/rmap?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status](https://snap-ci.com/aroemers/rmap/branch/master/build_image)](https://snap-ci.com/aroemers/rmap/branch/master)
 
 A Clojure library designed to define literal lazy, recursive maps.
