@@ -19,9 +19,9 @@ A Clojure library designed to define literal lazy, recursive maps.
 
 ### 0.4.0 - Both structural sharing as per instance realization
 
-The library internals have changed to a simpler and more memory efficient model. This model also allows adding new lazy entries to a recursive map. 
+The library internals have changed to a simpler and more memory efficient model. This model also allows adding new lazy entries to a recursive map.
 
-In addition to that, this version supports a new realization mode: _structural sharing_ of the lazy values. When enabled, realizing an entry in a recursive map means that all structurally shared recursive maps that still have this entry will have it realized as well. This mode has to be enabled explicitly. More on this can be read in the _API_ section. 
+In addition to that, this version supports a new realization mode: _structural sharing_ of the lazy values. When enabled, realizing an entry in a recursive map means that all structurally shared recursive maps that still have this entry will have it realized as well. This mode has to be enabled explicitly. More on this can be read in the _API_ section.
 
 **New API:** `assoc-lazy`, `merge-lazy` and `*unrealized*`.
 
@@ -65,11 +65,11 @@ Whenever an entry is realized, it is done so in the context of the given recursi
 
 #### Per instance realization
 
-By default, whenever a lazy entry is realized, it is only realized for that particular instance. Only descendants (like when `assoc`ing) will have the realized entry, if it has been realized at that time. This means that "parent" instances will still have the unrealized entry. 
+By default, whenever a lazy entry is realized, it is only realized for that particular instance. Only descendants (like when `assoc`ing) will have the realized entry, if it has been realized at that time. This means that "parent" instances will still have the unrealized entry.
 
 #### Structural sharing realization
 
-Although associating and disassociating entries returns a new recursive map instance, its lazy values can structurally shared. This is enabled by adding a truthful argument to the `rmap` macro. Enabling this means that when an entry is realized, it is realized in every instance that still has this same entry. The context however in which an entry is realized may differ. For instance, have a look at these examples:
+Although associating and disassociating entries returns a new recursive map instance, its lazy values can be structurally shared. This is enabled by adding a truthful argument to the `rmap` macro. Enabling this means that when an entry is realized, it is realized in every instance that still has this same entry. The context however in which an entry is realized may differ. For instance, have a look at these examples:
 
 ```clojure
 (let [x (rmap r {:a 1, :b (:a r)} true)]
@@ -96,7 +96,7 @@ Although associating and disassociating entries returns a new recursive map inst
    y        ;=> {:a 2, :b 2})
 ```
 
-This mode can be useful, for being sure that a lazy entry is really only evaluated once. But be careful. If another thread realizes an entry in a different (possibly unknown) context, the value of that entry might not be what you expect in your own context. This can be a feature, or downright annoying. 
+This mode can be useful, for being sure that a lazy entry is really only evaluated once. But be careful. If another thread realizes an entry in a different (possibly unknown) context, the value of that entry might not be what you expect in your own context. This can be a feature, or downright annoying.
 
 #### `(assoc-lazy rmap X key form)`
 
