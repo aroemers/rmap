@@ -1,4 +1,4 @@
-(ns rmap.middleware.api
+(ns rmap.middleware
   "This namespace contains the protocol that must be implemented by
   middlewares, and helper functions for inside those middleware
   implementations.

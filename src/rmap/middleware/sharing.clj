@@ -2,7 +2,7 @@
   "The structural sharing mode, encoded in middleware. This should be
   used as a replacement of the default middleware."
   (:require [rmap.internals :as int]
-            [rmap.middleware.api :as api]))
+            [rmap.middleware :as api]))
 
 
 (defn- fake-promise

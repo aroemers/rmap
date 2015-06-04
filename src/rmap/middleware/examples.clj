@@ -1,6 +1,6 @@
 (ns rmap.middleware.examples
   "A namespace with middleware examples."
-  (:require [rmap.middleware.api :as api]))
+  (:require [rmap.middleware :as api]))
 
 
 (defn chatty-middleware

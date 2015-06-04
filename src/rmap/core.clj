@@ -1,6 +1,6 @@
 (ns rmap.core
   (:require [rmap.internals :as int]
-            [rmap.middleware.api :as mapi]
+            [rmap.middleware :as mapi]
             [rmap.middleware.default :as mdef])
   (:import [java.util Map$Entry]
            [rmap.internals RMap]))

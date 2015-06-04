@@ -2,7 +2,7 @@
   "With this middleware you can add extra meta information about which
   entries should be realized in parralel whenever another entry that
   depends on those entries is requested."
-  (:require [rmap.middleware.api :as api]
+  (:require [rmap.middleware :as api]
             [rmap.middleware.default :as mdef]))
 
 

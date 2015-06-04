@@ -1,6 +1,6 @@
 (ns rmap.internals
   "The recursive map internals and type."
-  (:require [rmap.middleware.api :as mapi])
+  (:require [rmap.middleware :as mapi])
   (:import [java.util Map$Entry]
            [java.io Writer]))
 

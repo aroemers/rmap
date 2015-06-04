@@ -1,7 +1,7 @@
 (ns rmap.middleware.default
   "The default middleware for recursive maps."
   (:require [rmap.internals :as int]
-            [rmap.middleware.api :as api]))
+            [rmap.middleware :as api]))
 
 
 (deftype LockKey [key])
