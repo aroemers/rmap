@@ -1,4 +1,6 @@
 (ns rmap.core
+  "The core public API for recursive maps. Consult the README and/or
+  the docstrings for a detailed explanation of how to work with them."
   (:require [rmap.internals :as int]
             [rmap.middleware :as mapi]
             [rmap.middleware.default :as mdef])
@@ -13,6 +15,7 @@
   default-middleware is used. One can also supply a vector of
   middlewares. An empty vector means no middleware is used, meaning
   that an entry will be realized every time it is requested."
+  {:added "0.5"}
   ([]
    (rmap* [(mdef/default-middleware)]))
   ([middlewares]
@@ -41,6 +44,7 @@
   "Associates a lazy form to the given recursive map, under the key
   `k`. The form can access other entries in the map using the `sym`
   symbol."
+  {:added "0.4"}
   [rm sym k form]
   `(let [k# ~k
          f# (fn [~sym] (int/pipe-middlewares mapi/request [k#] ~sym (fn [] ~form)))]
@@ -52,6 +56,7 @@
   value, and executes the body within that binding. When bound, its
   value is used by the middlewares, such as the default middleware,
   instead of realizing an unrealized entry."
+  {:added "0.5"}
   [val & body]
   `(binding [int/*unrealized* ~val]
      ~@body))
@@ -63,6 +68,7 @@
   "Add dynamic middleware to the given recursive map, in front of the
   other middlewares. This function returns a sequence of middleware
   names in the recursive map."
+  {:added "0.5"}
   [rmap middleware]
   (let [{:keys [name dynamic?] :as meta} (mapi/info middleware)]
     (if dynamic?
@@ -75,6 +81,7 @@
   "Add dynamic middleware to the given recursive map, inserted right
   after the middleware with the given name. Returns a sequence of
   middleware names in the recursive map."
+  {:added "0.5"}
   [rmap middleware after-name]
   (let [{:keys [name dynamic?] :as meta} (mapi/info middleware)
         index (->> @(.middlewares rmap)
@@ -100,6 +107,7 @@
   "Remove dynamic middleware by name from a recursive map. This also
   removes the middleware data from the recursive map, if any. Returns
   a sequence of middleware names that are still in the recursive map."
+  {:added "0.5"}
   [rmap name]
   (if-let [[index middleware] (->> @(.middlewares rmap)
                                    (keep-indexed (fn [i m] (when (= (first m) name) [i (second m)])))
@@ -116,6 +124,7 @@
 
 (defn current-middlewares
   "Returns a sequence of the current middleware names."
+  {:added "0.5"}
   [rmap]
   (map first @(.middlewares rmap)))
 
@@ -128,6 +137,7 @@
   recursive maps have the same non-dynamic middleware, in the same
   order. Middleware data is merged as well. The middleware of the
   \"last\" recursive map is used for the merged result."
+  {:added "0.4"}
   [m1 & mx]
   (let [m1-nondynamics (int/non-dynamic-middlewares m1)]
     (if (every? (fn [rm] (= (int/non-dynamic-middlewares rm) m1-nondynamics)) mx)
@@ -139,11 +149,15 @@
               "cannot lazy-merge maps with different non-dynamic middlewares")))))
 
 
-(defn seq-evalled
+(defn seq-realized
   "Where calling `seq` on a recursive map normally evaluates all the entries,
-  this function only returns a seq of the currently evaluated entries."
+  this function only returns a seq of the currently realized entries."
+  {:added "0.5"}
   [rmap]
   (binding [int/*unrealized* ::ignore]
     (remove (fn [^clojure.lang.MapEntry me]
               (= (.val me) ::ignore))
             (seq rmap))))
+
+
+(def ^{:doc "Old name for seq-realized."} seq-evalled seq-realized)

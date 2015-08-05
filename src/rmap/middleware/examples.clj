@@ -37,7 +37,6 @@
 (defn- conv [col val] (conj (vec col) val))
 
 (defn dependencies-middleware
-  [f]
   "Calls function `(f {key [deps] ...})` whenever a key is requested.
   The given map is a dependencies map (which can also be used by the
   `parallel-middleware`) resulting from requesting a key. When f is
@@ -64,6 +63,7 @@
 
   (:c r)
   ;=> 3"
+  [f]
   (reify api/Middleware
     (request [_ key cont]
       (let [deps (atom {})

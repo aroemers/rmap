@@ -48,7 +48,7 @@
 
   (assoc [this key val]
     "This function is called whenever a non-lazy value has just been
-    added to the recursive map. Note that this accos has resulted in a
+    added to the recursive map. Note that this assoc has resulted in a
     new instance.")
 
   (assoc-lazy [this key]
