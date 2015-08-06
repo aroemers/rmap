@@ -1,4 +1,4 @@
-### [API](#the-api) | [Change log](CHANGELOG.md) | [Gitter chat](https://gitter.im/aroemers/rmap) | [Twitter](https://twitter.com/functionalbytes)
+### [API](#the-core-api) | [Change log](CHANGELOG.md) | [Gitter chat](https://gitter.im/aroemers/rmap) | [Twitter](https://twitter.com/functionalbytes)
 
 # Rmap, lazy recursive maps
 
@@ -78,7 +78,7 @@ r
 Read the *API* section for a more elaborate discussion on the core functions and macros. The *Middleware* section shows what and how extra functionality can be added or changed to the behaviour of recursive maps.
 
 
-## The API
+## The core API
 
 #### `(rmap <sym> {<key> <form>, ...})`
 
@@ -182,35 +182,61 @@ While the former example replaces the default behaviour, most middlewares will e
 ;=> 3"
 ```
 
-### The protocol
-
-To implement middleware, is has to satisfy the `rmap.middleware/Middleware` protocol. It contains the following five functions.
-
-#### `(info <this>)`
-
-This function should return a map with keys `:name` and `:dynamic?`. Its values are the name of the middleware, and a boolean indicating whether the middleware is dynamic, respectively.
+### Using middleware
 
 Middleware can either be dynamic or non-dynamic. Dynamic middleware  means that by its nature it can be added and removed to/from a recursive map, without causing consistency problems. Non-dynamic middleware must be added while creating a recursive map, for instance by passing it to the `rmap` macro.
 
-#### `(request <this> <key> <cont>)`
+Adding dynamic middleware can be done through the `add-middleware` or `add-middleware-after` functions. The first puts the middleware at the front, the latter places the middleware after the middleware with the given name. Dynamic middleware can be removed by name, with `remove-middleware`. Adding and removing middleware does _not_ result in a new recursive map instance. To get a list of current middleware names, the `current-middlewares` can be used.
 
-This function is called whenever an entry in the recursive map is requested. It should either return a value, or return the result of calling the 0-arg continuation. Calling the continuation results in calling the `request` function of the middleware next in line.
+### Implementing middleware
 
-#### `(assoc <this> <key> <val>)`, `(assoc-lazy <this> <key>)` and `(dissoc <this> <key>)`
+#### The protocol
 
-These functions are called to inform the middleware that a (lazy) entry has just been added or removed from the recursive map. Note that this addition or removal resulted in a new instance. The middleware may want to update its data accordingly.
+To implement middleware, is has to satisfy the `rmap.middleware/Middleware` protocol. It contains the following five functions.
 
-### Data functions
+<table>
+	<tr><th>Function</th><th>Role</th></tr>
+	<tr>
+		<td>(info&nbsp;[this])</td>
+		<td>
+			This function should return a map with keys <code>:name</code> and <code>:dynamic?</code>. Its values are the name of the middleware, and a boolean indicating whether the middleware is dynamic, respectively.
+		</td>
+	</tr>
+		<tr>
+		<td>(request&nbsp;[this&nbsp;key&nbsp;cont])</td>
+		<td>
+			This function is called whenever an entry in the recursive map is requested. It should either return a value, or return the result of calling the 0-arg continuation. Calling the continuation results in calling the <code>request</code> function of the middleware next in line.
+		</td>
+	</tr>
+		<tr>
+		<td>(assoc&nbsp;[this&nbsp;key&nbsp;val]), (assoc-lazy&nbsp;[this&nbsp;key]), (dissoc&nbsp;[this&nbsp;key])</td>
+		<td>
+			These functions are called to inform the middleware that a (lazy) entry has just been added or removed from the recursive map. Note that this addition or removal resulted in a new instance. The middleware may want to update its data accordingly.
+		</td>
+	</tr>
+</table>
+
+
+#### Data functions
 
 Middleware implementations can store and retrieve data from the recursive map instance calling their functions. New descendents of the instance will carry over the data, but updating the data does not influence the data of other instances. Updating the data does not result in a new instance either. The data functions can be found in the `rmap.middleware` namespace.
 
-#### `(latest-data)`
+<table>
+	<tr><th>Function</th><th>Role</th></tr>
+	<tr>
+		<td>(latest-data)</td>
+		<td>
+			Returns the data for the currently applied middleware at the current time.
+		</td>
+	</tr>
+	<tr>
+		<td>(update&#8209;data&nbsp;[f&nbsp;&&nbsp;args])</td>
+		<td>
+			Updates the data for the currently applied middleware, by applying function `f` on the current data, and the optional `args`. Updates are atomic.
+		</td>
+	</tr>
+</table>
 
-Returns the data for the currently applied middleware at the current time.
-
-#### `(update-data <f> & <args>)`
-
-Updates the data for the currently applied middleware, by applying function `f` on the current data, and the optional `args`. Updates are atomic.
 
 ## Clojure.core functions on recursive maps
 
