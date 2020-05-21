@@ -1,299 +1,160 @@
-### [API](#the-core-api) | [Change log](CHANGELOG.md) | [Gitter chat](https://gitter.im/aroemers/rmap) | [Twitter](https://twitter.com/functionalbytes)
+[![Clojars Project](https://img.shields.io/clojars/v/functionalbytes/rmap.svg)](https://clojars.org/functionalbytes/rmap)
+[![cljdoc badge](https://cljdoc.org/badge/functionalbytes/rmap)](https://cljdoc.org/d/functionalbytes/rmap/CURRENT)
+[![Clojure CI](https://github.com/aroemers/rmap/workflows/Clojure%20CI/badge.svg?branch=master)](https://github.com/aroemers/rmap/actions?query=workflow%3A%22Clojure+CI%22)
+[![Clojars Project](https://img.shields.io/clojars/dt/functionalbytes/rmap?color=blue)](https://clojars.org/functionalbytes/rmap)
+![Map](https://img.shields.io/badge/map-recursive-brightgreen)
 
-# Rmap, lazy recursive maps
+# ➰ rmap
 
-A Clojure library designed to define literal lazy, recursive maps.
+A Clojure library for literal recursive maps.
 
-```clojure
-(def m
-  (rmap X
-    {:what "awesome!"
-     :clj (str "Clojure is " (:what X))})
-(:clj m)
-;=> "Clojure is awesome!"
+![Banner](banner.png)
+
+## Usage
+
+### The RVal object
+
+We start with a basic building block: a recursive value.
+A recursive value is an unevaluated expession, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
+The expression can access this datastructure using the implicit `ref` object.
+
+A recursive value is represented in the form of an RVal object.
+You can create an RVal using the `rval` macro.
+Is simply takes one or more expressions as its body.
+Let's create a simple Clojure map with an RVal object in it and print it:
+
+```clj
+(def basic
+  {:foo 1
+   :bar (rval (println "Calculating bar...")
+              (inc (ref :foo)))})
+;=> #'user/basic
+
+basic
+;=> {:foo 1, :bar ??}
 ```
 
-## Getting started and quick overview
+As you can see, the `:bar` entry is an RVal and uses the `ref` object to fetch the value mapped to `:foo`.
+You can also see that the `:bar` entry is not evaluated yet.
 
-### Add rmap to your project
+There is a complementary macro, called `rvals`.
+It lets you create a datastructure from a literal representation, where all values are automatically RVal objects.
+For example, the following creates a similar map, except that the `:foo` value is now also an RVal:
 
-Add this to your leiningen dependencies (**latest stable build**, the rest of this README may already be in the future!!1)
+```clj
+(def basic
+  (rvals {:foo 1
+          :bar (do (println "Calculating bar...")
+                   (inc (ref :foo)))}))
+;=> #'user/basic
 
-```clojure
-[functionalbytes/rmap "0.5.0"]
+basic
+;=> {:foo ??, :bar ??}
 ```
 
-or as a maven dependency
+### The RMap object
 
-```xml
-<dependency>
-    <groupId>functionalbytes</groupId>
-    <artifactId>rmap</artifactId>
-    <version>0.5.0</version>
-</dependency>
+To evaluate an RVal, it needs a `ref` object to access the other entries of the context it is evaluated in.
+While you could build your own, this library offers an RMap object for that purpose.
+An RMap object acts as an associative datastructure, but is read-only.
+
+We can create such an RMap by passing a standard map or vector to `->rmap`.
+The resulting object can be used to fetch values from the "wrapped" map or vector.
+If a requested value is an RVal, the RMap will evaluate it first _by passing itself_.
+Recursion! 💥
+
+Let's create an RMap for the basic map we created before and use it:
+
+```clj
+(def basic-r (->rmap basic))
+;=> #'user/basic-r
+
+basic-r
+;=> #<RMap: {:foo ?? :bar ??}>
+
+(basic-r :b)
+Calculating bar...
+;=> 2
+
+(basic-r :b)
+;=> 2
+
+basic-r
+;=> #<RMap: {:foo 1 :bar 2}>
 ```
 
-and make sure Clojars is available as one of your repositories.
+You can see that the `:bar` entry is evaluated now, yielding the expected result.
+You can also see that the result is cached, as the "calculating" message is only printed once.
+This caching happens on the level of the RMap object.
+The original map itself has not changed:
 
-### Create and use an rmap with default behaviour
-
-
-Create a new rmap with `(rmap <symbol> <literal map using symbol in values>)`
-
-```clojure
-(def r 
-  (rmap X {:bob "bob" 
-           :alice (str "alice and " (:bob X))}))
-;=> #'user/r
+```clj
+basic
+;=> {:foo ??, :bar ??}
 ```
 
-All initial entries are lazy and not yet realized, as one can see when printing the rmap.
+Some final remarks about RMaps.
 
-```clojure
-r
-;=> {:bob ??, :alice ??}
+- Evaluating entries through an RMap is thread-safe and cached in the scope of that particular RMap.
+- Most common access methods are supported on an RMap object, such as `(get rmap x)`, `(seq rmap)`, `(:foo rmap)` for maps and `(nth rmap 2)` for vectors, et cetera.
+- Passing an RMap instead of a Clojure datastructure to `->rmap` will create a copy of that RMap with its own cache.
+
+### Combining the building blocks
+
+To make it easer to create recursive maps or vectors, another macro is provided, called `rmap`.
+This is a combination of `rvals` and `->rmap`.
+It takes a literal map or vector and returns an RMap object directly.
+For example:
+
+```clj
+(def basic-r
+  (rmap {:foo 1
+         :bar (inc (ref :foo))
+         :baz (+ (ref :bar) (ref :whut 40)}))
+;=> #'user/basic-r
+
+basic-r
+;=> #<RMap: {:a ?? :b ?? :c ??}>
 ```
 
-When requesting an unrealized entry, it will be realized, possibly realizing other entries as well. Note how the rmap instance in which the `:alice` key is evaluated influences the returned value. Also note that the original rmap `r` is not affected, since the `:alice` entry is evaluated in a immutable descendant of `r` due to the `assoc`.
+Now you can access the entries through the RMap again.
+The RMap is somewhat limited though.
+While this is on purpose, you may want to have a normal Clojure datastructure with all the entries evaluated.
+By passing the RMap to `->clj` you get just that.
+For example:
 
-```clojure
-(:alice (assoc r :bob "eve"))
-;=> "alice and eve"
+```clj
+(->clj basic-r)
+;=> {:foo 1 :bar 2 :baz 42}
 
-r
-;=> {:bob ??, :alice ??}
+(->clj (assoc basic :bar 1001))
+;=> {:bar 1001 :bar 1002 :baz 1042}
 ```
 
-When requesting an entry in the rmap, its value is cached (in the default behaviour). The next time the entry is requested, the form is not evaluated again. This can be seen when printing the rmap.
+Now you can work on the maps like you're used to.
+Note that you can use `->clj` on a normal datastructure as well.
+In that case it will create an RMap under water to evaluate all values.
 
+The last macro that is provided is `rmap!`.
+This is the same as `rmap`, but returns an instantly evaluated Clojure datastructure (using `->clj`).
+For example:
 
-```clojure
-(:alice r)
-;=> "alice and bob"
-
-r
-;=> {:bob "bob", :alice "alice and bob"}
+```clj
+(rmap! {:foo 1
+        :bar (inc (ref :foo))
+        :baz (inc (ref :bar))})
+;=> {:foo 1 :bar 2 :baz 3}
 ```
 
-Read the *API* section for a more elaborate discussion on the core functions and macros. The *Middleware* section shows what and how extra functionality can be added or changed to the behaviour of recursive maps.
+Maybe this `rmap!` is all you need for your purposes.
+The other macros and functions are provided to give you all the tools you might need.
+This way the rmap library aims to be both simple and easy.
 
-
-## The core API
-
-#### `(rmap <sym> {<key> <form>, ...})`
-
-The main macro in this library is called `rmap`. It takes two arguments: a symbol which can be used to access the recursive map from within the value expressions, and the map itself. It closes over locals and arbritary keys can be used. An immutable object of type `RMap` is returned, which implements all of the necessary interfaces to act like a standard Clojure map, such as `IPersistentMap`, `IPersistentCollection`, and `IFn`. This means it can be used with all of the core functions, as a function itself (taking one or two arguments), and with keyword lookups.
-
-All the entries in the initial map are lazy, i.e. the value forms have not been evaluated yet. We say that these entries are unrealized. Whenever a value is requested from the recursive map, it is realized. Realization -- evaluating the value form -- is done so in the context of the given recursive map instance. This means that whenever an entry uses other entries in the map, it uses the entries from that particular instance.
-
-By default, whenever a lazy entry is realized, it is only realized for that particular instance. Only descendants (like when `assoc`ing) will have the realized entry, if it has been realized at that time. This means that "parent" instances may still have the unrealized entry.
-
-Optionally, the `rmap` macro can take a third parameter: a sequence of middlewares. More on this in the *Middleware* section.
-
-#### `(assoc-lazy <rmap> <sym> <key> <form>)`
-
-The API defines one other macro, called `assoc-lazy`. This returns a new recursive map with the given form added to the given instance, without the form being realized. The form can use the symbol `<sym>` to refer to other entries in the recursive map it is evaluated in.
-
-#### `(merge-lazy <rmap1> <rmap2> ...)`
-
-This function merges two or more recursive maps, without realizing any unrealized entries. For example:
-
-```clojure
-(def x (rmap r {:foo 'bar/baz :ns (namespace (:foo r))}))
-(def y (rmap r {:foo 'eve/baz :extra 'thing}))
-
-(def z (merge-lazy x y))
-
-z 
-;=> {:extra ??, :ns ??, :foo ??}
-
-(:ns z)
-;=> "eve"
-```
-
-Note that the _non-dynamic_ middleware of the merging recursive maps must be the same. More on this in the *Middleware* section.
-
-#### `(with-unrealized <val> <exprs>)`
-
-The `rmap.internals` namespace has a dynamic variable, called `*unrealized*`. By default it is unbound. The `with-unrealized` macro binds this variable to the given value, around the given expressions. When it is bound, its value is used for unrealized entries whenever such entry is requested. That entry will stay unrealized. Many core library functions evaluate all entries inside a map, such as `seq` and `=`. Using this macro prevents this.
-
-```clojure
-(let [x (rmap r {:foo "bar"})]
-  (binding [*unrealized* "baz"]
-    (:foo x)))   
-;=> "baz"
-```
-
-#### `(seq-realized <rmap>)`
-
-As calling `seq` on a recursive map normally evaluates all the entries, this function only returns a seq of the currently evaluated entries.
-
-## Middleware
-
-The former API section described the basic, default behaviour of recursive maps. Although this is already powerful, and in many cases enough, a whole set of other behaviours and additions can be thought of. Therefore, recursive maps supports middleware. Actually, the default behaviour is also just middleware around a tiny core. Some middlewares replace other middlewares, others are additions.
-
-### Examples
-
-#### Replacing default behaviour with structural realization sharing
-
-In the former API section it was said that, by default, whenever a map entry is realized in a descendant instance, the entry in the parent or descendant instances are not realized. However, this behaviour can be changed. The namespace `rmap.middleware.sharing` provides middleware that replaces the default behaviour, such that whenever an entry is realized, it is realized in all the rmaps that still have this entry, both parents and descendants. In other words, the realization of entry values are structurally shared. Now the context in which an entry is realized becomes more important as well. For instance, have a look at these examples:
-
-```clojure
-(defn mk-example-sharing-maps []
-  (let [x (rmap r {:a 1, :b (:a r)} [(sharing-middleware)])]
-    [x (assoc x :a 2)]))
-
-(let [[x y] (mk-example-sharing-maps)]
-   x        ;=> {:a ??, :b ??}
-   y        ;=> {:a 2, :b ??}
-
-   ;; realize :b in the context of x
-   (:b x)   ;=> 1
-
-   x        ;=> {:a 1, :b 1}
-   y        ;=> {:a 2, :b 1})  ; here :b is also 1
-
-(let [[x y] (mk-example-sharing-maps)]
-   x        ;=> {:a ??, :b ??}
-   y        ;=> {:a 2, :b ??}
-
-   ;; realize :b in the context of y
-   (:b y)   ;=> 2
-
-   x        ;=> {:a 1, :b 2}   ; here :b is also 2
-   y        ;=> {:a 2, :b 2})
-```
-
-This middleware can be useful, by being sure that a lazy entry is really only evaluated once. But be careful. If another thread realizes an entry in a different (possibly unknown) context, the value of that entry might not be what you expect in your own context. This can be a feature, or downright annoying. If anything, it shows how the default behaviour can be altered.
-
-#### Enhancing default behaviour with parallel realization
-
-While the former example replaces the default behaviour, most middlewares will enhance it. One could think of adding debug messages, timing evaluation per entry or keeping track of the order in which entries are realized. Another possibility, which is actually available in the `rmap.middleware.parallel` namspace, is parallel realization of entries. By adding some meta data to the recursive map, whenever an entry is realized, it knows which dependencies should be realized in parallel first. Below one can see for example that realizing the `:c` entry requires only one second, instead of two with only the default behaviour.
-
-```clojure
-(def r (rmap X {:a (do (Thread/sleep 1000) 1)
-                :b (do (Thread/sleep 1000) 2)
-                :c (+ (:a X) (:b X))}
-             [(default-middleware)
-              (parallel-middleware {:c [:b :a]})]))
-
-(time (:c r))
-;=> Elapsed time: 1003.868562 msecs
-;=> 3"
-```
-
-### Using middleware
-
-Middleware can either be dynamic or non-dynamic. Dynamic middleware  means that by its nature it can be added and removed to/from a recursive map, without causing consistency problems. Non-dynamic middleware must be added while creating a recursive map, for instance by passing it to the `rmap` macro.
-
-Adding dynamic middleware can be done through the `add-middleware` or `add-middleware-after` functions. The first puts the middleware at the front, the latter places the middleware after the middleware with the given name. Dynamic middleware can be removed by name, with `remove-middleware`. Adding and removing middleware does _not_ result in a new recursive map instance. To get a list of current middleware names, the `current-middlewares` can be used.
-
-### Implementing middleware
-
-#### The protocol
-
-To implement middleware, is has to satisfy the `rmap.middleware/Middleware` protocol. It contains the following five functions.
-
-<table>
-	<tr><th>Function</th><th>Role</th></tr>
-	<tr>
-		<td>(info&nbsp;[this])</td>
-		<td>
-			This function should return a map with keys <code>:name</code> and <code>:dynamic?</code>. Its values are the name of the middleware, and a boolean indicating whether the middleware is dynamic, respectively.
-		</td>
-	</tr>
-		<tr>
-		<td>(request&nbsp;[this&nbsp;key&nbsp;cont])</td>
-		<td>
-			This function is called whenever an entry in the recursive map is requested. It should either return a value, or return the result of calling the 0-arg continuation. Calling the continuation results in calling the <code>request</code> function of the middleware next in line.
-		</td>
-	</tr>
-		<tr>
-		<td>(assoc&nbsp;[this&nbsp;key&nbsp;val]), (assoc-lazy&nbsp;[this&nbsp;key]), (dissoc&nbsp;[this&nbsp;key])</td>
-		<td>
-			These functions are called to inform the middleware that a (lazy) entry has just been added or removed from the recursive map. Note that this addition or removal resulted in a new instance. The middleware may want to update its data accordingly.
-		</td>
-	</tr>
-</table>
-
-
-#### Data functions
-
-Middleware implementations can store and retrieve data from the recursive map instance calling their functions. New descendents of the instance will carry over the data, but updating the data does not influence the data of other instances. Updating the data does not result in a new instance either. The data functions can be found in the `rmap.middleware` namespace.
-
-<table>
-	<tr><th>Function</th><th>Role</th></tr>
-	<tr>
-		<td>(latest-data)</td>
-		<td>
-			Returns the data for the currently applied middleware at the current time.
-		</td>
-	</tr>
-	<tr>
-		<td>(update&#8209;data&nbsp;[f&nbsp;&&nbsp;args])</td>
-		<td>
-			Updates the data for the currently applied middleware, by applying function `f` on the current data, and the optional `args`. Updates are atomic.
-		</td>
-	</tr>
-</table>
-
-
-## Clojure.core functions on recursive maps
-
-All Clojure core functions you use on maps can be used on recursive maps. However, there are some things to keep in mind, due to the characteristics of recursive maps. This section discusses some of the core functions, and how they work on the recursive maps. Although this is not a complete overview, it should give a general idea on how to deal with (and possibly keep) laziness.
-
-<table>
-	<tr><th>Function</th><th>Note</th></tr>
-	<tr>
-		<td>seq</td>
-		<td>
-			This realizes all entries in the recursive map. This is useful for situations like converting the recursive map to a normal map, using <code>(into {} rmap)</code>. It may be less appropriate for situations like where you want to know all the keys in the recursive map, without realizing any unevaluated values; the core <code>keys</code> functions uses <code>seq</code>.<br/>
-			<br/>
-			Using <code>with-unrealized</code> or <code>seq-realized</code> prevents realization, and thus can be used to retrieve the keys of all entries or realized entries, respectively.
-		</td>
-	</tr>
-	<tr>
-		<td>keys, into, ...</td>
-		<td>
-			Uses <code>seq</code> in its implementation. See the subsection above.
-		</td>
-	</tr>
-	<tr>
-		<td>assoc, conj, without, ...</td>
-		<td>
-			Returns a new recursive map, with the given entry or entries added, overwritten or removed. You can use the laziness of recursive maps to introduce entries that are required by still unrealized entries. For example, note how the <code>:b</code> entry uses an <code>:a</code> entry, which is added later: <code>(-> (rmap r {:b (:a r)}) (conj [:a 42]) :b) ;=> 42</code>
-		</td>
-	</tr>
-	<tr>
-		<td>count</td>
-		<td>
-			Returns the total number of entries in the recursive map, both realized and unrealized.
-		</td>
-	</tr>
-	<tr>
-		<td>empty</td>
-		<td>
-			Returns an empty recursive map, with the same middleware as the instance it was called on.
-		</td>
-	</tr>
-	<tr>
-		<td>=, .equals, hash, ...</td>
-		<td>
-			Comparing or calculating a hash of a recursive map means that it will be realized in full, before the comparison or calculation is performed. Using <code>with-unrealized</code> prevents this.
-		</td>
-	</tr>
-	<tr>
-		<td>merge</td>
-		<td>
-			When a recursive map is given as the second or later argument to <code>merge</code>, it is fully realized. When given as the first argument, it is unaffected. To merge two or more recursive maps, while not realizing the unrealized forms, use the <code>merge-lazy</code> function as explained in the API section.
-		</td>
-	</tr>
-</table>
-
+_That's it. Enjoy!_ 🚀
 
 ## License
 
-Copyright © 2014-2015 Functional Bytes
+Copyright © 2014-2020 Functional Bytes
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.

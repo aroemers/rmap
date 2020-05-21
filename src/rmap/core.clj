@@ -1,163 +1,120 @@
 (ns rmap.core
-  "The core public API for recursive maps. Consult the README and/or
-  the docstrings for a detailed explanation of how to work with them."
-  (:require [rmap.internals :as int]
-            [rmap.middleware :as mapi]
-            [rmap.middleware.default :as mdef])
-  (:import [java.util Map$Entry]
-           [rmap.internals RMap]))
+  "The core API for recursive maps."
+  (:require [clojure.pprint :refer [simple-dispatch]]))
 
+;;; Internals
 
-;;; The core public API
+(deftype RVal [f]
+  clojure.lang.IFn
+  (invoke [this ref]
+    (f ref)))
 
-(defn rmap*
-  "Create an empty recursive map. Given no arguments, the
-  default-middleware is used. One can also supply a vector of
-  middlewares. An empty vector means no middleware is used, meaning
-  that an entry will be realized every time it is requested."
-  {:added "0.5"}
-  ([]
-   (rmap* [(mdef/default-middleware)]))
-  ([middlewares]
-   (let [named (map (fn [middleware]
-                      [(:name (mapi/info middleware)) middleware])
-                    middlewares)]
-     (RMap. {} nil (atom (vec named)) (atom {})))))
+(defmethod print-method RVal [rval ^java.io.Writer writer]
+  (.write writer "??"))
 
+(defmethod simple-dispatch RVal [rval]
+  (print-method rval *out*))
+
+(declare rval?)
+
+(deftype RMap [cache]
+  clojure.lang.IFn
+  (invoke [this key]
+    (.valAt this key nil))
+  (invoke [this key not-found]
+    (.valAt this key not-found))
+
+  clojure.lang.ILookup
+  (valAt [this key]
+    (.valAt this key nil))
+  (valAt [this key not-found]
+    (if-let [[_ val] (find @cache key)]
+      (if (rval? val)
+        (locking cache
+          (let [val (get @cache key)]
+            (if (rval? val)
+              (let [ret (val this)]
+                (swap! cache assoc key ret)
+                ret)
+              val)))
+        val)
+      not-found))
+
+  clojure.lang.Associative
+  (containsKey [this key]
+    (contains? @cache key))
+  (entryAt [this key]
+    (clojure.lang.MapEntry. key (.valAt this key)))
+
+  clojure.lang.IPersistentCollection
+  (empty [this]
+    (empty @cache))
+
+  clojure.lang.Indexed
+  (nth [this i]
+    (.valAt this key nil))
+  (nth [this i not-found]
+    (.valAt this key not-found))
+
+  clojure.lang.Seqable
+  (seq [this]
+    (seq (if (map? @cache)
+           (map #(.entryAt this %) (keys @cache))
+           (map #(.valAt this %) (range (count @cache)))))))
+
+(defmethod print-method RMap [rmap ^java.io.Writer writer]
+  (.write writer (str "#<RMap: " (pr-str @(.cache rmap)) ">")))
+
+(defmethod simple-dispatch RMap [rmap]
+  (print-method rmap *out*))
+
+;;; Public API
+
+(defmacro rval
+  "Takes a body of expressions and yields an RVal object. The body has
+  implicit access to a `ref` RMap object and is not evaluated yet."
+  [& body]
+  `(RVal. (fn [~'ref] ~@body)))
+
+(defn rval?
+  "Returns true if x is an RVal."
+  [x]
+  (instance? RVal x))
+
+(defmacro rvals
+  "Takes a literal associative datastructure m and returns m where each
+  of the value expressions are wrapped with rval."
+  [m]
+  (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m))
+
+(defn rmap?
+  "Returns true if x is an RMap."
+  [x]
+  (instance? RMap x))
+
+(defn ->rmap
+  "Takes an associative datastructure m (or an RMap) and yields an RMap
+  object of it."
+  [m]
+  (if (rmap? m)
+    (->rmap @(.cache m))
+    (RMap. (atom m))))
+
+(defn ->clj
+  "Takes an RMap object m (or a Clojure associative datastructure) and
+  returns a standard Clojure datastructure where all rval values are
+  evaluated."
+  [m]
+  (if (rmap? m)
+    (into (empty m) m)
+    (->clj (->rmap m))))
 
 (defmacro rmap
-  "Defines a lazy, recursive map. That is, expressions in the values
-  of the map can use the given symbol `sym` to access other keys
-  within the map. Optionally one can supply a vector of middlewares.
-  If not supplied, the default-middleware is used. An empty vector
-  means no middleware is used, meaning that an entry will be realized
-  everytime it is requested. See README for usage and examples."
-  ([sym m]
-   `(rmap ~sym ~m [(mdef/default-middleware)]))
-  ([sym m middlewares]
-   `(-> (rmap* ~middlewares)
-        ~@(for [[k form] m]
-            `(assoc-lazy ~sym ~k ~form)))))
+  "Same as rvals, but composed with `->rmap`."
+  [m]
+  `(->rmap (rvals ~m)))
 
-
-(defmacro assoc-lazy
-  "Associates a lazy form to the given recursive map, under the key
-  `k`. The form can access other entries in the map using the `sym`
-  symbol."
-  {:added "0.4"}
-  [rm sym k form]
-  `(let [k# ~k
-         f# (fn [~sym] (int/pipe-middlewares mapi/request [k#] ~sym (fn [] ~form)))]
-     (int/assoc-lazy* ~rm k# f#)))
-
-
-(defmacro with-unrealized
-  "Binds the dynamic variable rmap.internals/*unrealized* to the given
-  value, and executes the body within that binding. When bound, its
-  value is used by the middlewares, such as the default middleware,
-  instead of realizing an unrealized entry."
-  {:added "0.5"}
-  [val & body]
-  `(binding [int/*unrealized* ~val]
-     ~@body))
-
-
-;;; Middleware related public API
-
-(defn add-middleware
-  "Add dynamic middleware to the given recursive map, in front of the
-  other middlewares. This function returns a sequence of middleware
-  names in the recursive map."
-  {:added "0.5"}
-  [rmap middleware]
-  (let [{:keys [name dynamic?] :as meta} (mapi/info middleware)]
-    (if dynamic?
-      (->> (swap! (.middlewares rmap) (fn [current] (cons [name middleware] current)))
-           (map first))
-      (throw (IllegalArgumentException. "cannot add non-dynamic middleware after construction")))))
-
-
-(defn add-middleware-after
-  "Add dynamic middleware to the given recursive map, inserted right
-  after the middleware with the given name. Returns a sequence of
-  middleware names in the recursive map."
-  {:added "0.5"}
-  [rmap middleware after-name]
-  (let [{:keys [name dynamic?] :as meta} (mapi/info middleware)
-        index (->> @(.middlewares rmap)
-                   (keep-indexed (fn [i m] (when (= (first m) after-name) i)))
-                   (first))]
-    (cond
-      (not dynamic?)
-      (throw (IllegalArgumentException. "cannot add non-dynamic middleware after construction"))
-
-      (not index)
-      (throw (IllegalArgumentException. (str "cannot find middleware with name " after-name)))
-
-      :otherwise
-      (->> (swap! (.middlewares rmap)
-                  (fn [current]
-                    (vec (concat (take (inc index) current)
-                                 [[name middleware]]
-                                 (drop (inc index) current)))))
-           (map first)))))
-
-
-(defn remove-middleware
-  "Remove dynamic middleware by name from a recursive map. This also
-  removes the middleware data from the recursive map, if any. Returns
-  a sequence of middleware names that are still in the recursive map."
-  {:added "0.5"}
-  [rmap name]
-  (if-let [[index middleware] (->> @(.middlewares rmap)
-                                   (keep-indexed (fn [i m] (when (= (first m) name) [i (second m)])))
-                                   (first))]
-    (if (:dynamic? (mapi/info middleware))
-      (do (swap! (.datas rmap) assoc-in name nil)
-          (->> (swap! (.middlewares rmap)
-                      (fn [current]
-                        (vec (concat (take index current) (drop (inc index) current)))))
-               (map first)))
-      (throw (IllegalArgumentException. "cannot remove non-dynamic middleware")))
-    (throw (IllegalArgumentException. (str "cannot find middleware with name " name)))))
-
-
-(defn current-middlewares
-  "Returns a sequence of the current middleware names."
-  {:added "0.5"}
-  [rmap]
-  (map first @(.middlewares rmap)))
-
-
-;;; Utility functions.
-
-(defn merge-lazy
-  "Merges one or more recursive maps, without realizing any unrealized
-  values. Returns a new recursive map. Only allowed when all the
-  recursive maps have the same non-dynamic middleware, in the same
-  order. Middleware data is merged as well. The middleware of the
-  \"last\" recursive map is used for the merged result."
-  {:added "0.4"}
-  [m1 & mx]
-  (let [m1-nondynamics (int/non-dynamic-middlewares m1)]
-    (if (every? (fn [rm] (= (int/non-dynamic-middlewares rm) m1-nondynamics)) mx)
-      (RMap. (apply merge (.fns m1) (map #(.fns %) mx))
-             (apply merge (.meta m1) (map #(.meta %) mx))
-             (atom @(.middlewares (or (last mx) m1)))
-             (atom (apply merge-with merge @(.datas m1) (map #(-> % .datas deref) mx))))
-      (throw (IllegalArgumentException.
-              "cannot lazy-merge maps with different non-dynamic middlewares")))))
-
-
-(defn seq-realized
-  "Where calling `seq` on a recursive map normally evaluates all the entries,
-  this function only returns a seq of the currently realized entries."
-  {:added "0.5"}
-  [rmap]
-  (binding [int/*unrealized* ::ignore]
-    (remove (fn [^clojure.lang.MapEntry me]
-              (= (.val me) ::ignore))
-            (seq rmap))))
-
-
-(def ^{:doc "Old name for seq-realized."} seq-evalled seq-realized)
+(defmacro rmap!
+  "Same as rmap, but composed with `->clj`."
+  [m]
+  `(->clj (rmap ~m)))
