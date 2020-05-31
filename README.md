@@ -97,6 +97,7 @@ Some final remarks about RMaps.
 
 - Evaluating entries through an RMap is thread-safe and cached in the scope of that particular RMap.
 - Most common access methods are supported on an RMap object, such as `(get rmap x)`, `(seq rmap)`, `(:foo rmap)` for maps and `(nth rmap 2)` for vectors, et cetera.
+- Calling `seq` on an RMap will evaluate all entries. Remember that many Clojure core functions use `seq` underwater, even for simple things like `keys`.
 - Passing an RMap instead of a Clojure datastructure to `->rmap` will create a copy of that RMap with its own cache.
 
 ### Combining the building blocks
