@@ -17,56 +17,21 @@
 
 (declare rval?)
 
-(deftype RMap [cache]
-  clojure.lang.IFn
-  (invoke [this key]
-    (.valAt this key nil))
-  (invoke [this key not-found]
-    (.valAt this key not-found))
-
-  clojure.lang.ILookup
-  (valAt [this key]
-    (.valAt this key nil))
-  (valAt [this key not-found]
-    (if-let [[_ val] (find @cache key)]
-      (if (rval? val)
-        (locking cache
-          (let [val (get @cache key)]
-            (if (rval? val)
-              (let [ret (val this)]
-                (swap! cache assoc key ret)
-                ret)
-              val)))
-        val)
-      not-found))
-
-  clojure.lang.Associative
-  (containsKey [this key]
-    (contains? @cache key))
-  (entryAt [this key]
-    (clojure.lang.MapEntry. key (.valAt this key)))
-
-  clojure.lang.IPersistentCollection
-  (empty [this]
-    (empty @cache))
-
-  clojure.lang.Indexed
-  (nth [this i]
-    (.valAt this key nil))
-  (nth [this i not-found]
-    (.valAt this key not-found))
-
-  clojure.lang.Seqable
-  (seq [this]
-    (seq (if (map? @cache)
-           (map #(.entryAt this %) (keys @cache))
-           (map #(.valAt this %) (range (count @cache)))))))
-
-(defmethod print-method RMap [rmap ^java.io.Writer writer]
-  (.write writer (str "#<RMap: " (pr-str @(.cache rmap)) ">")))
-
-(defmethod simple-dispatch RMap [rmap]
-  (print-method rmap *out*))
+(defn ^:no-doc ->ref [cache]
+  (fn ref
+    ([key] (ref key nil))
+    ([key not-found]
+     (if-let [[_ val] (find @cache key)]
+       (if (rval? val)
+         (locking cache
+           (let [val (get @cache key)]
+             (if (rval? val)
+               (let [ret (val ref)]
+                 (swap! cache assoc key ret)
+                 ret)
+               val)))
+         val)
+       not-found))))
 
 ;;; Public API
 
@@ -81,40 +46,29 @@
   [x]
   (instance? RVal x))
 
-(defmacro rvals
+(defmacro rmap
   "Takes a literal associative datastructure m and returns m where each
   of the value expressions are wrapped with rval."
   [m]
   (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m))
 
-(defn rmap?
-  "Returns true if x is an RMap."
-  [x]
-  (instance? RMap x))
+(defn valuate-keys!
+  "Given associative datastructure m, returns m where all RVal values
+  under the given keys are evaluated."
+  [m & keys]
+  (let [cache (atom m)
+        ref  (->ref cache)]
+    (run! #(ref %) keys)
+    @cache))
 
-(defn ->rmap
-  "Takes an associative datastructure m (or an RMap) and yields an RMap
-  object of it."
+(defn valuate!
+  "Given associative datastructure m, returns m where all RVal values
+  are evaluated."
   [m]
-  (if (rmap? m)
-    (->rmap @(.cache m))
-    (RMap. (atom m))))
-
-(defn ->clj
-  "Takes an RMap object m (or a Clojure associative datastructure) and
-  returns a standard Clojure datastructure where all rval values are
-  evaluated."
-  [m]
-  (if (rmap? m)
-    (into (empty m) m)
-    (->clj (->rmap m))))
-
-(defmacro rmap
-  "Same as rvals, but composed with `->rmap`."
-  [m]
-  `(->rmap (rvals ~m)))
+  (let [ref (->ref (atom m))]
+    (reduce-kv (fn [a k _] (assoc a k (ref k))) m m)))
 
 (defmacro rmap!
-  "Same as rmap, but composed with `->clj`."
+  "Same as rmap, but instantly valuated."
   [m]
-  `(->clj (rmap ~m)))
+  `(valuate! (rmap ~m)))
