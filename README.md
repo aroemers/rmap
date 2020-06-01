@@ -16,7 +16,7 @@ A Clojure library for literal recursive maps.
 
 We start with a basic building block: a recursive value.
 A recursive value is an unevaluated expession, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
-The expression can access this datastructure using the implicit `ref` object.
+The expression can access this datastructure using the implicit `ref` function.
 
 A recursive value is represented in the form of an RVal object.
 You can create an RVal using the `rval` macro.
@@ -24,120 +24,60 @@ Is simply takes one or more expressions as its body.
 Let's create a simple Clojure map with an RVal object in it and print it:
 
 ```clj
-(def basic
+(def my-map
   {:foo 1
-   :bar (rval (println "Calculating bar...")
-              (inc (ref :foo)))})
-;=> #'user/basic
+   :bar (rval (inc (ref :foo)))})
 
-basic
+my-map
 ;=> {:foo 1, :bar ??}
 ```
 
-As you can see, the `:bar` entry is an RVal and uses the `ref` object to fetch the value mapped to `:foo`.
-You can also see that the `:bar` entry is not evaluated yet.
+As you can see, the `:bar` entry is an RVal and uses the `ref` function to fetch the value mapped to `:foo`.
+You can also see that no evaluation has taken place.
 
-There is a complementary macro, called `rvals`.
+There is a complementary macro, called `rmap`.
 It lets you create a datastructure from a literal representation, where all values are automatically RVal objects.
 For example, the following creates a similar map, except that the `:foo` value is now also an RVal:
 
 ```clj
-(def basic
-  (rvals {:foo 1
-          :bar (do (println "Calculating bar...")
-                   (inc (ref :foo)))}))
-;=> #'user/basic
-
-basic
-;=> {:foo ??, :bar ??}
-```
-
-### The RMap object
-
-To evaluate an RVal, it needs a `ref` object to access the other entries of the context it is evaluated in.
-While you could build your own, this library offers an RMap object for that purpose.
-An RMap object acts as an associative datastructure, but is read-only.
-
-We can create such an RMap by passing a standard map or vector to `->rmap`.
-The resulting object can be used to fetch values from the "wrapped" map or vector.
-If a requested value is an RVal, the RMap will evaluate it first _by passing itself_.
-Recursion! 💥
-
-Let's create an RMap for the basic map we created before and use it:
-
-```clj
-(def basic-r (->rmap basic))
-;=> #'user/basic-r
-
-basic-r
-;=> #<RMap: {:foo ?? :bar ??}>
-
-(basic-r :b)
-Calculating bar...
-;=> 2
-
-(basic-r :b)
-;=> 2
-
-basic-r
-;=> #<RMap: {:foo 1 :bar 2}>
-```
-
-You can see that the `:bar` entry is evaluated now, yielding the expected result.
-You can also see that the result is cached, as the "calculating" message is only printed once.
-This caching happens on the level of the RMap object.
-The original map itself has not changed:
-
-```clj
-basic
-;=> {:foo ??, :bar ??}
-```
-
-Some final remarks about RMaps.
-
-- Evaluating entries through an RMap is thread-safe and cached in the scope of that particular RMap.
-- Most common access methods are supported on an RMap object, such as `(get rmap x)`, `(seq rmap)`, `(:foo rmap)` for maps and `(nth rmap 2)` for vectors, et cetera.
-- Calling `seq` on an RMap will evaluate all entries. Remember that many Clojure core functions use `seq` underwater, even for simple things like `keys`.
-- Passing an RMap instead of a Clojure datastructure to `->rmap` will create a copy of that RMap with its own cache.
-
-### Combining the building blocks
-
-To make it easer to create recursive maps or vectors, another macro is provided, called `rmap`.
-This is a combination of `rvals` and `->rmap`.
-It takes a literal map or vector and returns an RMap object directly.
-For example:
-
-```clj
-(def basic-r
+(def my-map
   (rmap {:foo 1
-         :bar (inc (ref :foo))
-         :baz (+ (ref :bar) (ref :whut 40)}))
-;=> #'user/basic-r
+         :bar (inc (ref :foo))}))
+;=> #'user/my-map
 
-basic-r
-;=> #<RMap: {:a ?? :b ?? :c ??}>
+my-map
+;=> {:foo ??, :bar ??}
 ```
 
-Now you can access the entries through the RMap again.
-The RMap is somewhat limited though.
-While this is on purpose, you may want to have a normal Clojure datastructure with all the entries evaluated.
-By passing the RMap to `->clj` you get just that.
-For example:
+### Valuating
+
+To evaluate one or more RVal objects in a particular context, you can use the `valuate!` function.
+It takes an associative datastructure and returns an updated version of it, where all RVal objects are evaluated.
+A companion function is `valuate-keys!`.
+It does the same, but only evaluates the specified keys (or indices) and their dependencies.
+
+Let's evaluate the map we created earlier:
 
 ```clj
-(->clj basic-r)
-;=> {:foo 1 :bar 2 :baz 42}
+(valuate! my-map)
+;= {:foo 1, :bar 2}
 
-(->clj (assoc basic :bar 1001))
-;=> {:bar 1001 :bar 1002 :baz 1042}
+my-map
+;=> {:foo ??, :bar ??}
+
+(valuate-keys! my-map :foo)
+;=> {:foo 1, :bar ??}
 ```
 
-Now you can work on the maps like you're used to.
-Note that you can use `->clj` on a normal datastructure as well.
-In that case it will create an RMap under water to evaluate all values.
+You can see that the entries are evaluated now, yielding the expected result.
+Also note that the original map itself has not changed.
+
+The valuation functions create a `ref` function to access the entries of the datastructure _by passing itself_ to the RVals.
+Recursion! 💥
+It caches the results while doing this, so each entry is only evaluated once, even if an entry is requested multiple times by other entries.
 
 The last macro that is provided is `rmap!`.
-This is the same as `rmap`, but returns an instantly evaluated Clojure datastructure (using `->clj`).
+This is the same as `rmap`, but is instantly valuated.
 For example:
 
 ```clj
