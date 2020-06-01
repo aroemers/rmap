@@ -67,12 +67,16 @@ my-map
 
 (valuate-keys! my-map :foo)
 ;=> {:foo 1, :bar ??}
+
+(valuate! (assoc my-map :foo 1001))
+;=> {:foo 1001, :bar 1002}
 ```
 
-You can see that the entries are evaluated now, yielding the expected result.
-Also note that the original map itself has not changed.
+You can see that the entries are evaluated now, yielding the expected results.
+Also note that the original map itself has not changed and can be modified, yielding different results.
 
-The valuation functions create a `ref` function to access the entries of the datastructure _by passing itself_ to the RVals.
+The valuation functions create a `ref` function under water.
+This is used to access and evaluate the entries of the datastructure _by passing itself_ to the RVals.
 Recursion! 💥
 It caches the results while doing this, so each entry is only evaluated once, even if an entry is requested multiple times by other entries.
 
