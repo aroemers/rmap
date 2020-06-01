@@ -53,6 +53,13 @@
   [m]
   (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m))
 
+(defn valuate!
+  "Given associative datastructure m, returns m where all RVal values
+  are evaluated."
+  [m]
+  (let [ref (->ref (atom m))]
+    (reduce-kv (fn [a k _] (assoc a k (ref k))) m m)))
+
 (defn valuate-keys!
   "Given associative datastructure m, returns m where all RVal values
   under the given keys and their dependencies are evaluated."
@@ -61,13 +68,6 @@
         ref  (->ref cache)]
     (run! #(ref %) keys)
     @cache))
-
-(defn valuate!
-  "Given associative datastructure m, returns m where all RVal values
-  are evaluated."
-  [m]
-  (let [ref (->ref (atom m))]
-    (reduce-kv (fn [a k _] (assoc a k (ref k))) m m)))
 
 (defmacro rmap!
   "Same as rmap, but instantly valuated."
