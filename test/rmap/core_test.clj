@@ -3,51 +3,35 @@
             [rmap.core :refer :all]))
 
 (deftest rval-test
-  (let [rv (rval (inc (ref :a)))]
+  (let [rv (rval (inc (ref :a 101)))]
     (is (= 2 (rv {:a 1})))
+    (is (= 102 (rv {})))
     (is (rval? rv))))
 
-(deftest rvals-test
-  (let [rvsm (rvals {:a 1 :b (inc (ref :a))})
-        rvsv (rvals [1 (inc (ref 0))])]
-    (is (every? rval? (vals rvsm)))
-    (is (every? rval? rvsv))))
+(deftest rmap-test
+  (let [rm-map (rmap {:a 1 :b (inc (ref :a))})
+        rm-vec (rmap [1 (inc (ref 0))])]
+    (is (every? rval? (vals rm-map)))
+    (is (every? rval? rm-vec))))
 
-(deftest ->rmap-test
-  (let [rm (->rmap {:a 1 :b 2})]
-    (is (rmap? rm))
-    (is (rmap? (->rmap rm)))))
+(deftest valuate!-test
+  (let [a-calcs (atom 0)
+        rm-map  (rmap {:a (do (swap! a-calcs inc) 1)
+                       :b (inc (ref :a))
+                       :c (+ (ref :a) (ref :d 41))})
+        rm-vec  (rmap [1 (inc (ref 0))])]
+    (is (= (valuate! rm-map) {:a 1 :b 2 :c 42}))
+    (is (= (valuate! rm-vec) [1 2]))
+    (is (= 1 @a-calcs))))
 
-(deftest rmap-test-map
-  (let [rmm (rmap {:a 1 :b (inc (ref :a))})]
-    (is (= 2 (:b rmm)))
-    (is (= 2 (rmm :b)))
-    (is (contains? rmm :b))
-    (is (= #{[:a 1] [:b 2]} (set (seq rmm))))
-    (is (= (into {} rmm) {:a 1 :b 2}))
-    (is (= {} (empty rmm)))))
-
-(deftest rmap-test-vector
-  (let [rmv (rmap [1 (inc (ref 0))])]
-    (is (= 2 (get rmv 1)))
-    (is (= 2 (rmv 1)))
-    (is (contains? rmv 1))
-    (is (= [1 2] (seq rmv)))
-    (is (= (into [] rmv) [1 2]))
-    (is (= [] (empty rmv)))))
-
-(deftest ->clj-test
-  (let [rvsm (rvals {:a 1 :b (inc (ref :a))})
-        rvsv (rvals [1 (inc (ref 0))])
-        m (->clj rvsm)
-        v (->clj rvsv)]
-    (is (instance? clojure.lang.IPersistentMap m))
-    (is (instance? clojure.lang.IPersistentVector v))
-    (is (= {:a 1 :b 2} m))
-    (is (= [1 2] v))))
+(deftest valuate-keys!-test
+  (let [rv-a (rval 1)
+        rv-b (rval 2)
+        rm   {:a rv-a :b rv-b}]
+    (is (= (valuate-keys! rm :a) {:a 1 :b rv-b}))))
 
 (deftest rmap!-test
-  (let [m (rmap! {:a 1 :b (inc (ref :a))})
-        v (rmap! [1 (inc (ref 0))])]
-    (is (instance? clojure.lang.IPersistentMap m))
-    (is (instance? clojure.lang.IPersistentVector v))))
+  (let [rm-map (rmap! {:a 1 :b (inc (ref :a))})
+        rm-vec (rmap! [1 (inc (ref 0))])]
+    (is (= {:a 1 :b 2} rm-map))
+    (is (= [1 2] rm-vec))))
