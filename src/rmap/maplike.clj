@@ -1,6 +1,6 @@
 (ns rmap.maplike
-  "Experimental associative datastructure for working with recursive
-  maps."
+  "Associative datastructure for working with recursive maps.
+  EXPERIMENTAL, CAN BE CHANGED OR REMOVED ANYTIME AT THIS POINT."
   (:require [clojure.pprint :refer [simple-dispatch]]
             [rmap.core :refer [valuate-keys!]]))
 
