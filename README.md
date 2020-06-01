@@ -43,7 +43,6 @@ For example, the following creates a similar map, except that the `:foo` value i
 (def my-map
   (rmap {:foo 1
          :bar (inc (ref :foo))}))
-;=> #'user/my-map
 
 my-map
 ;=> {:foo ??, :bar ??}
@@ -53,7 +52,7 @@ my-map
 
 To evaluate one or more RVal objects in a particular context, you can use the `valuate!` function.
 It takes an associative datastructure and returns an updated version of it, where all RVal objects are evaluated.
-A companion function is `valuate-keys!`.
+A similar function is `valuate-keys!`.
 It does the same, but only evaluates the specified keys (or indices) and their dependencies.
 
 Let's evaluate the map we created earlier:
