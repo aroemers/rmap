@@ -54,7 +54,7 @@
 
 (defn valuate-keys!
   "Given associative datastructure m, returns m where all RVal values
-  under the given keys are evaluated."
+  under the given keys and their dependencies are evaluated."
   [m & keys]
   (let [cache (atom m)
         ref  (->ref cache)]
