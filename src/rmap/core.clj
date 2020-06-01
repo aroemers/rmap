@@ -37,7 +37,8 @@
 
 (defmacro rval
   "Takes a body of expressions and yields an RVal object. The body has
-  implicit access to a `ref` RMap object and is not evaluated yet."
+  implicit access to a `(fn ref [key] [key not-found])` function and
+  is not evaluated yet."
   [& body]
   `(RVal. (fn [~'ref] ~@body)))
 
