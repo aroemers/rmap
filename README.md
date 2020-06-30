@@ -2,7 +2,7 @@
 [![cljdoc badge](https://cljdoc.org/badge/functionalbytes/rmap)](https://cljdoc.org/d/functionalbytes/rmap/CURRENT)
 [![Clojure CI](https://github.com/aroemers/rmap/workflows/Clojure%20CI/badge.svg?branch=master)](https://github.com/aroemers/rmap/actions?query=workflow%3A%22Clojure+CI%22)
 [![Clojars Project](https://img.shields.io/clojars/dt/functionalbytes/rmap?color=blue)](https://clojars.org/functionalbytes/rmap)
-[![Blogpost](https://img.shields.io/badge/blog-Introducing%20rmap%202.0-brightgreen)](https://functionalbytes.nl/clojure/rmap/2020/06/04/rmap-2.html)
+[![Blogpost](https://img.shields.io/badge/blog-Introducing%20rmap%202.0-blue)](https://functionalbytes.nl/clojure/rmap/2020/06/04/rmap-2.html)
 
 # ➰ rmap
 
