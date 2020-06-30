@@ -49,7 +49,7 @@
 
 (defmacro rmap
   "Takes a literal associative datastructure m and returns m where each
-  of the value expressions are wrapped with rval."
+  of the value expressions are wrapped with [[rval]]."
   [m]
   (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m))
 
@@ -70,6 +70,6 @@
     @cache))
 
 (defmacro rmap!
-  "Same as rmap, but instantly valuated."
+  "Same as [[rmap]], but composed with [[valuate!]]."
   [m]
   `(valuate! (rmap ~m)))
