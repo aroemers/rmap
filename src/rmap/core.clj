@@ -112,6 +112,57 @@
   (RefTag. key))
 
 
+;;; The ref-let macro
+
+(defn ^:no-doc sym-to-key [sym key]
+  (case (name key)
+    "keys" (keyword (or (namespace key) (namespace sym)) (name sym))
+    "syms" (symbol  (or (namespace key) (namespace sym)) (name sym))
+    "strs" (str sym)))
+
+(defn ^:no-doc ref-let-keyword [key val ors]
+  (case key
+    :or []
+    :as [val `ref]
+    (mapcat #(let [sym (symbol (name %))]
+               [sym `(ref '~(sym-to-key % key) ~(get ors sym))])
+            val)))
+
+(defmacro ref-let
+  "Destructure the associative datastructure inside a recursive value.
+  For example:
+
+  (rmap! {:one   1
+          :two   2
+          :three 3
+
+          :total (ref-let [{:keys [one two] :as my-ref}]
+                   (+ one two (my-ref :three)))})"
+  [bindings & body]
+  (let [destruct (first bindings)]
+    (assert (< (count bindings) 2)
+            "ref-let can only take one destructuring binding form")
+    (cond (map? destruct)
+          `(let [~@(mapcat (fn [[key val]]
+                             (if (keyword? key)
+                               (ref-let-keyword key val (:or destruct))
+                               [key `(ref ~val)]))
+                           destruct)]
+             ~@body)
+
+          (vector? destruct)
+          `(let [~@(mapcat (fn [sym index] [sym `(ref ~index)]) destruct (range))]
+             ~@body)
+
+          (symbol? destruct)
+          `(let [~destruct ref]
+             ~@body)
+
+          :otherwise
+          (throw (IllegalArgumentException.
+                  "ref-let can only use associative destructuring")))))
+
+
 ;;; Deprecated stuff
 
 (defn ^{:no-doc true :deprecated "2.1.1"} ->rmap

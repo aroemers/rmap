@@ -44,3 +44,26 @@
         rm-vec (rmap [1 #rmap/ref 0])]
     (is (= (valuate! rm-map) {:a 1 :b 1}))
     (is (= (valuate! rm-vec) [1 1]))))
+
+(deftest ref-let-test
+  (let [result
+        (rmap! {:one                  1
+                'two                  2
+                "three"               3
+                :user/four            4
+                'user/five            5
+                :flipped-nine         6
+                :rmap.core-test/seven 7
+                :rest                 [8 9]
+
+                :total
+                (ref-let [{:keys        [one user/four ::seven ten]
+                           :syms        [two]
+                           :user/syms   [five]
+                           :strs        [three]
+                           six          :flipped-nine
+                           [eight nine] :rest
+                           :or          {ten (+ 5 5)}
+                           :as          my-ref}]
+                  (+ one two three four five six seven eight nine ten (my-ref :one)))})]
+    (is (:total result) 56)))
