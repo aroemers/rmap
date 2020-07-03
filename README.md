@@ -6,11 +6,41 @@
 
 # ➰ rmap
 
-A Clojure library for literal recursive maps.
+A Clojure library for recursive maps.
 
 ![Banner](banner.png)
 
-## Usage
+## An appetizer
+
+This library allows you to create a recursive maps, i.e. maps with entries that can point to other entries in the same map.
+See for yourself!
+
+```clj
+;; They can be created literally:
+
+(rmap! {:foo 1
+        :bar (ref :foo)})
+
+;; Or, using plain data:
+
+(rmap! {:foo 1
+        :bar #rmap/ref :foo})
+
+;; Or, programmatically:
+
+(valuate! {:foo 1
+           :bar (rval (ref :foo))})
+```
+
+In all cases, the result is the same:
+
+```clj
+{:foo 1, :bar 1}
+```
+
+Read on to see how this all works.
+
+## Detailed usage
 
 ### The RVal object
 
@@ -59,7 +89,7 @@ Let's evaluate the map we created earlier:
 
 ```clj
 (valuate! my-map)
-;= {:foo 1, :bar 2}
+;=> {:foo 1, :bar 2}
 
 my-map
 ;=> {:foo ??, :bar ??}
@@ -79,8 +109,38 @@ This is used to access and evaluate the entries of the datastructure _by passing
 Recursion! 💥
 It caches the results while doing this, so each entry is only evaluated once, even if an entry is requested multiple times by other entries.
 
-The last macro that is provided is `rmap!`.
-This is the same as `rmap`, but is instantly valuated.
+### Plain data recursive maps
+
+There are three slightly more advanced features related to valuating.
+
+Firstly, when an RVal is evaluated, the library post-processes the result by walking through it.
+Whenever a `#rmap/ref <key>` (a tagged litteral, handled by `rmap.core/ref-tag`) is encountered during this walk, it will be replaced with the value under the referenced key.
+This way you can create recursive maps using plain data, by reading from an EDN file for example.
+
+Secondly, to create a recursive map from an already existing map, you can use the `->rmap` function.
+The resulting map has all values wrapped in an `rval`.
+
+And thirdly, the `valuate!` function takes an optional extra parameter.
+The extra parameter is a function that post-processes the evaluation result of an RVal (after the post-processing of the `#rmap/ref` tagged literal).
+This way you can turn plain data into something else for example.
+
+Let's combine these three features in an example:
+
+```clj
+(def my-data-map {:foo 1 :bar #rmap/ref :foo})
+;=> {:foo 1, :bar #rmap/ref :foo}
+
+(def my-map (->rmap my-data-map))
+;=> {:foo ??, :bar ??}
+
+(valuate! my-map inc)
+;=> {:foo 2, :bar 3}
+```
+
+### Putting it all together
+
+As you've seen in the appetizer, there is also a convenience macro called `rmap!`.
+This is the same as `rmap`, but it is instantly valuated.
 For example:
 
 ```clj

@@ -4,20 +4,19 @@
 
 ;;; Internals
 
-(deftype RVal [f]
-  clojure.lang.IFn
-  (invoke [this ref]
-    (f ref)))
+(deftype RefTag [key])
 
-(defmethod print-method RVal [rval ^java.io.Writer writer]
-  (.write writer "??"))
+(defn- ref-tag? [x]
+  (instance? RefTag x))
 
-(defmethod simple-dispatch RVal [rval]
-  (print-method rval *out*))
+(defn- resolve-ref-tags [ref data]
+  (clojure.walk/postwalk #(cond-> % (ref-tag? %) (-> .key ref)) data))
+
+(deftype RVal [f])
 
 (declare rval?)
 
-(defn ^:no-doc ->ref [cache]
+(defn- ->ref [cache f]
   (fn ref
     ([key] (ref key nil))
     ([key not-found]
@@ -26,12 +25,28 @@
          (locking cache
            (let [val (get @cache key)]
              (if (rval? val)
-               (let [ret (val ref)]
+               (let [ret (f (resolve-ref-tags ref ((.f val) ref)))]
                  (swap! cache assoc key ret)
                  ret)
                val)))
          val)
        not-found))))
+
+
+;;; Printing
+
+(defmethod print-method RefTag [^rmap.core.RefTag reftag ^java.io.Writer writer]
+  (.write writer (str "#rmap/ref " (.key reftag))))
+
+(defmethod simple-dispatch RefTag [^rmap.core.RefTag reftag]
+  (print-method reftag *out*))
+
+(defmethod print-method RVal [^rmap.core.RVal rval ^java.io.Writer writer]
+  (.write writer "??"))
+
+(defmethod simple-dispatch RVal [^rmap.core.RVal rval]
+  (print-method rval *out*))
+
 
 ;;; Public API
 
@@ -55,21 +70,41 @@
 
 (defn valuate!
   "Given associative datastructure m, returns m where all RVal values
-  are evaluated."
-  [m]
-  (let [ref (->ref (atom m))]
-    (reduce-kv (fn [a k _] (assoc a k (ref k))) m m)))
+  are evaluated. Takes an optional post-evaluation wrapper function."
+  ([m] (valuate! m identity))
+  ([m f]
+   (let [ref (->ref (atom m) f)]
+     (reduce-kv (fn [a k _] (assoc a k (ref k))) m m))))
 
 (defn valuate-keys!
   "Given associative datastructure m, returns m where all RVal values
   under the given keys and their dependencies are evaluated."
   [m & keys]
   (let [cache (atom m)
-        ref  (->ref cache)]
+        ref  (->ref cache identity)]
     (run! #(ref %) keys)
     @cache))
 
 (defmacro rmap!
   "Same as [[rmap]], but composed with [[valuate!]]."
+  ([m] `(valuate! (rmap ~m)))
+  ([m f] `(valuate! (rmap ~m) ~f)))
+
+(defn ->rmap
+  "Takes an associative datastructure m and returns m where each of the
+  values are wrapped with [[rval]]."
   [m]
-  `(valuate! (rmap ~m)))
+  (reduce-kv (fn [a k v] (assoc a k (rval v))) m m))
+
+(defn ->rmap!
+  "Same as [[->rmap]], but composed with [[valuate!]]."
+  ([m] (valuate! (->rmap m)))
+  ([m f] (valuate! (->rmap m) f)))
+
+(defn ref-tag
+  "A tagged literal processor, for use with clojure.edn/read-string.
+
+  (clojure.edn/read-string {:readers {'rmap/ref rmap.core/ref-tag}}
+    \"{:foo 1 :bar #rmap/ref :foo}\")"
+  [key]
+  (RefTag. key))

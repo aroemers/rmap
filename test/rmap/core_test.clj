@@ -4,8 +4,8 @@
 
 (deftest rval-test
   (let [rv (rval (inc (ref :a 101)))]
-    (is (= 2 (rv {:a 1})))
-    (is (= 102 (rv {})))
+    (is (= 2 ((.f rv) {:a 1})))
+    (is (= 102 ((.f rv) {})))
     (is (rval? rv))))
 
 (deftest rmap-test
@@ -22,7 +22,8 @@
         rm-vec  (rmap [1 (inc (ref 0))])]
     (is (= (valuate! rm-map) {:a 1 :b 2 :c 42}))
     (is (= (valuate! rm-vec) [1 2]))
-    (is (= 1 @a-calcs))))
+    (is (= 1 @a-calcs))
+    (is (= (valuate! rm-map inc) {:a 2 :b 4 :c 44}))))
 
 (deftest valuate-keys!-test
   (let [rv-a (rval 1)
@@ -35,3 +36,23 @@
         rm-vec (rmap! [1 (inc (ref 0))])]
     (is (= {:a 1 :b 2} rm-map))
     (is (= [1 2] rm-vec))))
+
+(deftest ->rmap-test
+  (let [m {:a 1 :b 2}
+        v [1 2]
+        rm-map (->rmap m)
+        rm-vec (->rmap v)]
+    (is (= (valuate! rm-map) m))
+    (is (= (valuate! rm-vec) v))))
+
+(deftest ->rmap!-test
+  (let [m {:a 1 :b 2}
+        v [1 2]]
+    (is (= (->rmap! m) m))
+    (is (= (->rmap! v) v))))
+
+(deftest ref-tag-test
+  (let [rm-map (->rmap {:a 1 :b #rmap/ref :a})
+        rm-vec (->rmap [1 #rmap/ref 0])]
+    (is (= (valuate! rm-map) {:a 1 :b 1}))
+    (is (= (valuate! rm-vec) [1 1]))))
