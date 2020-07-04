@@ -35,21 +35,9 @@
   (let [rm-map (rmap! {:a 1 :b (inc (ref :a))})
         rm-vec (rmap! [1 (inc (ref 0))])]
     (is (= {:a 1 :b 2} rm-map))
-    (is (= [1 2] rm-vec))))
-
-(deftest ->rmap-test
-  (let [m {:a 1 :b 2}
-        v [1 2]
-        rm-map (->rmap m)
-        rm-vec (->rmap v)]
-    (is (= (valuate! rm-map) m))
-    (is (= (valuate! rm-vec) v))))
-
-(deftest ->rmap!-test
-  (let [m {:a 1 :b 2}
-        v [1 2]]
-    (is (= (->rmap! m) m))
-    (is (= (->rmap! v) v))))
+    (is (= [1 2] rm-vec))
+    (is (= (rmap! rm-map) rm-map))
+    (is (= (rmap! rm-vec) rm-vec))))
 
 (deftest ref-tag-test
   (let [rm-map (->rmap {:a 1 :b #rmap/ref :a})

@@ -71,10 +71,14 @@
   (instance? RVal x))
 
 (defmacro rmap
-  "Takes a literal associative datastructure m and returns m where each
-  of the value expressions are wrapped with [[rval]]."
+  "Takes an associative datastructure m and returns m where each of the
+  values are wrapped as an [[rval]]. Can be a literal representation,
+  then the unevaluated expressions are passed to [[rval]]."
   [m]
-  (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m))
+  (if (or (map? m) (vector? m))
+    (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m)
+    `(let [m# ~m]
+       (reduce-kv (fn [a# k# v#] (assoc a# k# (rval v#))) m# m#))))
 
 (defn valuate!
   "Given associative datastructure m, returns m where all RVal values
@@ -98,17 +102,6 @@
   ([m] `(valuate! (rmap ~m)))
   ([m f] `(valuate! (rmap ~m) ~f)))
 
-(defn ->rmap
-  "Takes an associative datastructure m and returns m where each of the
-  values are wrapped with [[rval]]."
-  [m]
-  (reduce-kv (fn [a k v] (assoc a k (rval v))) m m))
-
-(defn ->rmap!
-  "Same as [[->rmap]], but composed with [[valuate!]]."
-  ([m] (valuate! (->rmap m)))
-  ([m f] (valuate! (->rmap m) f)))
-
 (defn ref-tag
   "A tagged literal processor, for use with clojure.edn/read-string.
 
@@ -116,3 +109,14 @@
     \"{:foo 1 :bar #rmap/ref :foo}\")"
   [key]
   (RefTag. key))
+
+
+;;; Deprecated stuff
+
+(defn ^{:no-doc true :deprecated "2.1.1"} ->rmap
+  [m]
+  (reduce-kv (fn [a k v] (assoc a k (rval v))) m m))
+
+(defn ^{:no-doc true :deprecated "2.1.1"} ->rmap!
+  ([m] (valuate! (->rmap m)))
+  ([m f] (valuate! (->rmap m) f)))
