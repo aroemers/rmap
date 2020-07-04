@@ -46,7 +46,8 @@ Read on to see how this all works.
 
 We start with a basic building block: a recursive value.
 A recursive value is an unevaluated expression, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
-The expression can access this datastructure using the implicit `ref` function.
+The expression can access other entries in this datastructure using the `ref` function.
+This function is only bound during the evaluation of the recursive value, so if you want to use it at a later point, you should bind it locally.
 
 A recursive value is represented in the form of an RVal object.
 You can create an RVal using the `rval` macro.
@@ -117,7 +118,7 @@ Firstly, when an RVal is evaluated, the library post-processes the result by wal
 Whenever a `#rmap/ref <key>` (a tagged litteral, handled by `rmap.core/ref-tag`) is encountered during this walk, it will be replaced with the value under the referenced key.
 This way you can create recursive maps using plain data, by reading from an EDN file for example.
 
-Secondly, to create a recursive map from an already existing map, you can use the `->rmap` function.
+Secondly, to create a recursive map from an already existing map, you can also use `rmap`.
 The resulting map has all values wrapped in an `rval`.
 
 And thirdly, the `valuate!` function takes an optional extra parameter.
@@ -130,7 +131,7 @@ Let's combine these three features in an example:
 (def my-data-map {:foo 1 :bar #rmap/ref :foo})
 ;=> {:foo 1, :bar #rmap/ref :foo}
 
-(def my-map (->rmap my-data-map))
+(def my-map (rmap my-data-map))
 ;=> {:foo ??, :bar ??}
 
 (valuate! my-map inc)
