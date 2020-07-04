@@ -1,5 +1,6 @@
 (ns rmap.core
   "The core API for recursive maps."
+  (:refer-clojure :exclude [ref])
   (:require [clojure.pprint :refer [simple-dispatch]]))
 
 ;;; Internals
@@ -50,12 +51,19 @@
 
 ;;; Public API
 
+(def ^{:dynamic  true
+       :arglists '([key] [key not-found])
+       :doc      "Returns the value mapped to key, not-found or nil if key not present."}
+  ref)
+
 (defmacro rval
-  "Takes a body of expressions and yields an RVal object. The body has
-  implicit access to a `(fn ref [key] [key not-found])` function and
-  is not evaluated yet."
+  "Takes a body of expressions and yields an RVal object. The body is
+  not evaluated yet. The body can use the [[ref]] function while it is
+  evaluated. You can bind it locally for use at a later stage."
   [& body]
-  `(RVal. (fn [~'ref] ~@body)))
+  `(RVal. (fn [ref#]
+            (binding [ref ref#]
+              ~@body))))
 
 (defn rval?
   "Returns true if x is an RVal."
