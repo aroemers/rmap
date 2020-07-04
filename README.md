@@ -45,7 +45,7 @@ Read on to see how this all works.
 ### The RVal object
 
 We start with a basic building block: a recursive value.
-A recursive value is an unevaluated expession, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
+A recursive value is an unevaluated expression, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
 The expression can access this datastructure using the implicit `ref` function.
 
 A recursive value is represented in the form of an RVal object.
