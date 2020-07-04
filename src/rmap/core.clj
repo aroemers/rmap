@@ -53,8 +53,9 @@
 
 (def ^{:dynamic  true
        :arglists '([key] [key not-found])
-       :doc      "Returns the value mapped to key, not-found or nil if key not present."}
-  ref)
+       :doc "Returns the value mapped to key, not-found or nil if key
+  not present. Can only be used inside an [[rval]]
+  during [[valuate!]]."} ref)
 
 (defmacro rval
   "Takes a body of expressions and yields an RVal object. The body is
