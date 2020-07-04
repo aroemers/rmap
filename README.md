@@ -50,7 +50,7 @@ The expression can access this datastructure using the implicit `ref` function.
 
 A recursive value is represented in the form of an RVal object.
 You can create an RVal using the `rval` macro.
-Is simply takes one or more expressions as its body.
+It simply takes one or more expressions as its body.
 Let's create a simple Clojure map with an RVal object in it and print it:
 
 ```clj
