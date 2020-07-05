@@ -40,7 +40,7 @@
     (is (= (rmap! rm-vec) rm-vec))))
 
 (deftest ref-tag-test
-  (let [rm-map (->rmap {:a 1 :b #rmap/ref :a})
-        rm-vec (->rmap [1 #rmap/ref 0])]
+  (let [rm-map (rmap {:a 1 :b #rmap/ref :a})
+        rm-vec (rmap [1 #rmap/ref 0])]
     (is (= (valuate! rm-map) {:a 1 :b 1}))
     (is (= (valuate! rm-vec) [1 1]))))
