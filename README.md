@@ -131,10 +131,10 @@ Let's combine these three features in an example:
 (def my-data-map {:foo 1 :bar #rmap/ref :foo})
 ;=> {:foo 1, :bar #rmap/ref :foo}
 
-(def my-map (rmap my-data-map))
+(def my-rmap (rmap my-data-map))
 ;=> {:foo ??, :bar ??}
 
-(valuate! my-map inc)
+(valuate! my-rmap inc)
 ;=> {:foo 2, :bar 3}
 ```
 
