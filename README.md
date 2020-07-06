@@ -84,8 +84,9 @@ For example when using a delay:
 
 ```clj
 (rmap {:foo 1
-       :bar (let [my-ref ref]
-              (delay (my-ref :foo)))})
+       :bar (inc (ref :foo))
+       :baz (let [my-ref ref]
+              (delay (my-ref :bar)))})
 ```
 
 ### Valuating
