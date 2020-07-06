@@ -47,7 +47,6 @@ Read on to see how this all works.
 We start with a basic building block: a recursive value.
 A recursive value is an unevaluated expression, which has access to the associative datastructure - i.e. a map or a vector - it will be evaluated in.
 The expression can access other entries in this datastructure using the `ref` function.
-This function is only bound during the evaluation of the recursive value, so if you want to use it at a later point, you should bind it locally.
 
 A recursive value is represented in the form of an RVal object.
 You can create an RVal using the `rval` macro.
@@ -77,6 +76,16 @@ For example, the following creates a similar map, except that the `:foo` value i
 
 my-map
 ;=> {:foo ??, :bar ??}
+```
+
+The `ref` function is only bound during the evaluation of the recursive value, as that is the only moment it makes sense to use it.
+If you want to use it at a later point, you should bind it locally.
+For example when using a delay:
+
+```clj
+(rmap {:foo 1
+       :bar (let [my-ref ref]
+              (delay (my-ref :foo)))})
 ```
 
 ### Valuating
