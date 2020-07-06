@@ -113,12 +113,8 @@ my-map
 ```
 
 You can see that the entries are evaluated now, yielding the expected results.
+Each entry is only evaluated once, even if an entry is requested multiple times by other entries.
 Also note that the original map itself has not changed and can be modified, yielding different results.
-
-The valuation functions create a `ref` function under water.
-This is used to access and evaluate the entries of the datastructure _by passing itself_ to the RVals.
-Recursion! 💥
-It caches the results while doing this, so each entry is only evaluated once, even if an entry is requested multiple times by other entries.
 
 ### Plain data recursive maps
 
