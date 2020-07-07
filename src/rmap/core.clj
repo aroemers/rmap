@@ -26,7 +26,10 @@
          (locking cache
            (let [val (get @cache key)]
              (if (rval? val)
-               (let [ret (f (resolve-ref-tags ref ((.f val) ref)))]
+               (let [ret (->> ((.f val) ref)
+                              (resolve-ref-tags ref)
+                              (clojure.lang.MapEntry. key)
+                              (f))]
                  (swap! cache assoc key ret)
                  ret)
                val)))
@@ -59,7 +62,7 @@
 (defmacro rval
   "Takes a body of expressions and yields an RVal object. The body is
   not evaluated yet. The body can use the [[ref]] function while it is
-  evaluated. You can bind it locally for use at a later stage."
+  evaluated, or you can bind it locally for use at a later stage."
   [& body]
   `(RVal. (fn [ref#]
             (binding [ref ref#]
@@ -82,8 +85,9 @@
 
 (defn valuate!
   "Given associative datastructure m, returns m where all RVal values
-  are evaluated. Takes an optional post-evaluation wrapper function."
-  ([m] (valuate! m identity))
+  are evaluated. Takes an optional post-evaluation wrapper function
+  receiving a `clojure.lang.MapEntry`."
+  ([m] (valuate! m val))
   ([m f]
    (let [ref (->ref (atom m) f)]
      (reduce-kv (fn [a k _] (assoc a k (ref k))) m m))))
@@ -93,7 +97,7 @@
   under the given keys and their dependencies are evaluated."
   [m & keys]
   (let [cache (atom m)
-        ref  (->ref cache identity)]
+        ref  (->ref cache val)]
     (run! #(ref %) keys)
     @cache))
 

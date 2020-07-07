@@ -23,7 +23,7 @@
     (is (= (valuate! rm-map) {:a 1 :b 2 :c 42}))
     (is (= (valuate! rm-vec) [1 2]))
     (is (= 1 @a-calcs))
-    (is (= (valuate! rm-map inc) {:a 2 :b 4 :c 44}))))
+    (is (= (valuate! rm-map (comp inc val)) {:a 2 :b 4 :c 44}))))
 
 (deftest valuate-keys!-test
   (let [rv-a (rval 1)

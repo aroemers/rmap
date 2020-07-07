@@ -1,5 +1,13 @@
 ## Changelog
 
+### 2.2.0 - Post-processing function now receives map entry.
+
+#### Updated
+
+- **BREAKING** The post-processing argument to `valuate!` (and by extension `rmap!`) now receives a `clojure.lang.MapEntry` as its argument, instead of only the value.
+  This way you have access to the key currently being valuated.
+
+
 ### 2.1.1 - Add actual ref function
 
 #### Added
