@@ -129,6 +129,8 @@ The resulting map has all values wrapped in an `rval`.
 
 And thirdly, the `valuate!` function takes an optional extra parameter.
 The extra parameter is a function that post-processes the evaluation result of an RVal (after the post-processing of the `#rmap/ref` tagged literal).
+The function receives a `clojure.lang.MapEntry` and should return a value.
+The default is Clojure's `val`.
 This way you can turn plain data into something else for example.
 
 Let's combine these three features in an example:
@@ -140,7 +142,7 @@ Let's combine these three features in an example:
 (def my-rmap (rmap my-data-map))
 ;=> {:foo ??, :bar ??}
 
-(valuate! my-rmap inc)
+(valuate! my-rmap (comp inc val))
 ;=> {:foo 2, :bar 3}
 ```
 
