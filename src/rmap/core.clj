@@ -73,6 +73,9 @@
   [x]
   (instance? RVal x))
 
+(defn ^:no-doc rmap* [m]
+  (reduce-kv (fn [a k v] (assoc a k (rval v))) m m))
+
 (defmacro rmap
   "Takes an associative datastructure m and returns m where each of the
   values are wrapped as an [[rval]]. Can be a literal representation,
@@ -80,8 +83,7 @@
   [m]
   (if (or (map? m) (vector? m))
     (reduce-kv (fn [a k v] (assoc a k `(rval ~v))) m m)
-    `(let [m# ~m]
-       (reduce-kv (fn [a# k# v#] (assoc a# k# (rval v#))) m# m#))))
+    `(rmap* ~m)))
 
 (defn valuate!
   "Given associative datastructure m, returns m where all RVal values
