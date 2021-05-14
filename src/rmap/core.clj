@@ -46,7 +46,7 @@
   (print-method reftag *out*))
 
 (defmethod print-method RVal [^rmap.core.RVal rval ^java.io.Writer writer]
-  (.write writer "??"))
+  (.write writer (str "(rval " (:ref/sexp (meta (.f rval))) ")")))
 
 (defmethod simple-dispatch RVal [^rmap.core.RVal rval]
   (print-method rval *out*))
@@ -64,7 +64,8 @@
   not evaluated yet. The body can use the [[ref]] function while it is
   evaluated, or you can bind it locally for use at a later stage."
   [& body]
-  `(RVal. (fn [ref#]
+  `(RVal. ^{:ref/sexp '~@body}
+          (fn [ref#]
             (binding [ref ref#]
               ~@body))))
 
