@@ -59,11 +59,11 @@ Let's create a simple Clojure map with an RVal object in it and print it:
    :bar (rval (inc (ref :foo)))})
 
 my-map
-;=> {:foo 1, :bar ??}
+;=> {:foo 1, :bar #rmap/rval (inc (ref :foo))}
 ```
 
 As you can see, the `:bar` entry is an RVal and uses the `ref` function to fetch the value mapped to `:foo`.
-You can also see that no evaluation has taken place.
+You can also see that no evaluation has taken place, i.e. it is still an RVal.
 
 There is a complementary macro, called `rmap`.
 It lets you create a datastructure from a literal representation, where all values are automatically RVal objects.
@@ -75,7 +75,7 @@ For example, the following creates a similar map, except that the `:foo` value i
          :bar (inc (ref :foo))}))
 
 my-map
-;=> {:foo ??, :bar ??}
+;=> {:foo #rmap/rval 1, :bar #rmap/rval (inc (ref :foo))}
 ```
 
 The `ref` function is only bound during the evaluation of the recursive value, as that is the only moment it makes sense to use it.
@@ -103,10 +103,10 @@ Let's evaluate the map we created earlier:
 ;=> {:foo 1, :bar 2}
 
 my-map
-;=> {:foo ??, :bar ??}
+;=> {:foo #rmap/rval 1, :bar #rmap/rval (inc (ref :foo))}
 
 (valuate-keys! my-map :foo)
-;=> {:foo 1, :bar ??}
+;=> {:foo 1, :bar #rmap/rval (inc (ref :foo))}
 
 (valuate! (assoc my-map :foo 1001))
 ;=> {:foo 1001, :bar 1002}
@@ -124,6 +124,11 @@ Firstly, when an RVal is evaluated, the library post-processes the result by wal
 Whenever a `#rmap/ref <key>` (a tagged litteral, handled by `rmap.core/ref-tag`) is encountered during this walk, it will be replaced with the value under the referenced key.
 This way you can create recursive maps using plain data, by reading from an EDN file for example.
 
+You can also use the `#rmap/rval <expr>` tagged literal to create a recursive value.
+Do note that the given expression is passed to `eval` in that case when valuated.
+This means that it does not have access to local bindings.
+Make sure you use the fully qualified `rmap.core/ref` function in the expression as well.
+
 Secondly, to create a recursive map from an already existing map, you can also use `rmap`.
 The resulting map has all values wrapped in an `rval`.
 
@@ -140,7 +145,7 @@ Let's combine these three features in an example:
 ;=> {:foo 1, :bar #rmap/ref :foo}
 
 (def my-rmap (rmap my-data-map))
-;=> {:foo ??, :bar ??}
+;=> {:foo #rmap/rval ??, :bar #rmap/rval ??}
 
 (valuate! my-rmap (comp inc val))
 ;=> {:foo 2, :bar 3}

@@ -1,9 +1,12 @@
 (ns rmap.core
   "The core API for recursive maps."
   (:refer-clojure :exclude [ref])
-  (:require [clojure.pprint :refer [simple-dispatch]]))
+  (:require [clojure.pprint :refer [simple-dispatch]]
+            [clojure.walk :as walk]))
 
 ;;; Internals
+
+(declare ref rval?)
 
 (deftype RefTag [key])
 
@@ -11,27 +14,29 @@
   (instance? RefTag x))
 
 (defn- resolve-ref-tags [ref data]
-  (clojure.walk/postwalk #(cond-> % (ref-tag? %) (-> .key ref)) data))
+  (walk/postwalk #(cond-> % (ref-tag? %) (-> .key ref)) data))
 
-(deftype RVal [f])
-
-(declare rval?)
+(deftype RVal [f expr]
+  clojure.lang.IFn
+  (invoke [_]
+    (if f (f) (eval expr))))
 
 (defn- ->ref [cache f]
-  (fn ref
-    ([key] (ref key nil))
+  (fn ref-fn
+    ([key] (ref-fn key nil))
     ([key not-found]
      (if-let [[_ val] (find @cache key)]
        (if (rval? val)
          (locking cache
            (let [val (get @cache key)]
              (if (rval? val)
-               (let [ret (->> ((.f val) ref)
-                              (resolve-ref-tags ref)
-                              (clojure.lang.MapEntry. key)
-                              (f))]
-                 (swap! cache assoc key ret)
-                 ret)
+               (binding [ref ref-fn]
+                 (let [ret (->> (val)
+                                (resolve-ref-tags ref-fn)
+                                (clojure.lang.MapEntry. key)
+                                (f))]
+                   (swap! cache assoc key ret)
+                   ret))
                val)))
          val)
        not-found))))
@@ -40,13 +45,19 @@
 ;;; Printing
 
 (defmethod print-method RefTag [^rmap.core.RefTag reftag ^java.io.Writer writer]
-  (.write writer (str "#rmap/ref " (.key reftag))))
+  (.write writer (str "#rmap/ref " (pr-str (.key reftag)))))
+
+(defmethod print-dup RefTag [^rmap.core.RefTag reftag ^java.io.Writer writer]
+  (print-method reftag writer))
 
 (defmethod simple-dispatch RefTag [^rmap.core.RefTag reftag]
   (print-method reftag *out*))
 
 (defmethod print-method RVal [^rmap.core.RVal rval ^java.io.Writer writer]
-  (.write writer "??"))
+  (.write writer (str "#rmap/rval " (pr-str (.expr rval)))))
+
+(defmethod print-dup RVal [^rmap.core.RVal rval ^java.io.Writer writer]
+  (print-method rval writer))
 
 (defmethod simple-dispatch RVal [^rmap.core.RVal rval]
   (print-method rval *out*))
@@ -64,9 +75,10 @@
   not evaluated yet. The body can use the [[ref]] function while it is
   evaluated, or you can bind it locally for use at a later stage."
   [& body]
-  `(RVal. (fn [ref#]
-            (binding [ref ref#]
-              ~@body))))
+  `(RVal. (fn [] ~@body)
+          '~(if (= (count body) 1)
+              (first body)
+              (cons 'do body))))
 
 (defn rval?
   "Returns true if x is an RVal."
@@ -74,7 +86,7 @@
   (instance? RVal x))
 
 (defn ^:no-doc rmap* [m]
-  (reduce-kv (fn [a k v] (assoc a k (rval v))) m m))
+  (reduce-kv (fn [a k ??] (assoc a k (rval ??))) m m))
 
 (defmacro rmap
   "Takes an associative datastructure m and returns m where each of the
@@ -112,9 +124,17 @@
   "A tagged literal processor, for use with clojure.edn/read-string.
 
   (clojure.edn/read-string {:readers {'rmap/ref rmap.core/ref-tag}}
-    \"{:foo 1 :bar #rmap/ref :foo}\")"
+    \"{:foo 1 :bar {:my-data #rmap/ref :foo}}\")"
   [key]
   (RefTag. key))
+
+(defn rval-tag
+  "A tagged literal processor, for use with clojure.edn/read-string.
+
+  (clojure.edn/read-string {:readers {'rmap/rval rmap.core/rval-tag}}
+    \"{:foo 1 :bar #rmap/rval (inc (rmap.core/ref :foo))}\")"
+  [expr]
+  (RVal. nil expr))
 
 
 ;;; Deprecated stuff

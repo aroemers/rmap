@@ -1,11 +1,12 @@
 (ns rmap.core-test
+  (:refer-clojure :exclude [ref])
   (:require [clojure.test :refer :all]
             [rmap.core :refer :all]))
 
 (deftest rval-test
   (let [rv (rval (inc (ref :a 101)))]
-    (is (= 2 ((.f rv) {:a 1})))
-    (is (= 102 ((.f rv) {})))
+    (is (= 2 (binding [ref {:a 1}] (rv))))
+    (is (= 102 (binding [ref {}] (rv))))
     (is (rval? rv))))
 
 (deftest rmap-test
@@ -40,7 +41,13 @@
     (is (= (rmap! rm-vec) rm-vec))))
 
 (deftest ref-tag-test
-  (let [rm-map (rmap {:a 1 :b #rmap/ref :a})
-        rm-vec (rmap [1 #rmap/ref 0])]
-    (is (= (valuate! rm-map) {:a 1 :b 1}))
-    (is (= (valuate! rm-vec) [1 1]))))
+  (let [rm-map (rmap {:a 1 :b {:my-data #rmap/ref :a}})
+        rm-vec (rmap [1 [#rmap/ref 0]])]
+    (is (= (valuate! rm-map) {:a 1 :b {:my-data 1}}))
+    (is (= (valuate! rm-vec) [1 [1]]))))
+
+(deftest rval-tag-test
+  (let [rm-map {:a 1 :b #rmap/rval (inc (rmap.core/ref :a))}
+        rm-vec [1 #rmap/rval (inc (rmap.core/ref 0))]]
+    (is (= {:a 1 :b 2} (valuate! rm-map)))
+    (is (= [1 2] (valuate! rm-vec)))))
