@@ -167,7 +167,7 @@ _That's it. Enjoy!_ 🚀
 
 ## License
 
-Copyright © 2014-2020 Functional Bytes
+Copyright © 2014-2023 Functional Bytes
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
